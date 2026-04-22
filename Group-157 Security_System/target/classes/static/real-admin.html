@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Access</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Segoe UI", Arial, sans-serif;
+            color: #e2e8f0;
+            background: linear-gradient(160deg, #0f172a 0%, #1e293b 50%, #1e1b4b 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+        }
+
+        .portal {
+            width: 100%;
+            max-width: 440px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            margin: 0 0 8px;
+            font-size: 30px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            color: #e2e8f0;
+        }
+
+        .header p {
+            margin: 0;
+            color: #94a3b8;
+            font-size: 13px;
+        }
+
+        .login-card {
+            width: 100%;
+            padding: 32px;
+            border-radius: 14px;
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            box-shadow: 0 14px 38px rgba(2, 6, 23, 0.5);
+        }
+
+        .login-card h2 {
+            margin: 0 0 16px;
+            font-size: 20px;
+            color: #e2e8f0;
+        }
+
+        .input-group {
+            margin-bottom: 12px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 13px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: #e2e8f0;
+            font-size: 14px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        input::placeholder {
+            color: #94a3b8;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.25), 0 0 12px rgba(96, 165, 250, 0.35);
+        }
+
+        .options {
+            margin: 4px 0 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        .options label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .options input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+            accent-color: #60a5fa;
+        }
+
+        .forgot {
+            color: #94a3b8;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .forgot:hover {
+            color: #cbd5e1;
+            text-decoration: underline;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            background: linear-gradient(90deg, #3b82f6, #6366f1);
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button:hover {
+            transform: scale(1.01);
+            box-shadow: 0 0 16px rgba(99, 102, 241, 0.55);
+        }
+    </style>
+</head>
+<body>
+    <main class="portal">
+        <header class="header">
+            <h1>Confidential Data Vault</h1>
+            <p>Restricted Access • Authorized Personnel Only</p>
+        </header>
+
+        <section class="login-card">
+            <h2>Admin Sign In</h2>
+            <form action="/real-admin" method="post">
+                <div class="input-group">
+                    <input type="text" placeholder="Admin ID" autocomplete="off">
+                </div>
+                <div class="input-group">
+                    <input type="text" name="username" placeholder="Username" required>
+                </div>
+                <div class="input-group">
+                    <input type="password" name="password" placeholder="Password" required>
+                </div>
+
+                <div class="options">
+                    <label>
+                        <input type="checkbox"> Remember me
+                    </label>
+                    <a href="#" class="forgot">Forgot password?</a>
+                </div>
+
+                <button type="submit">Authenticate</button>
+            </form>
+        </section>
+    </main>
+
+    <!-- REDIRECT SCRIPT -->
+    <script>
+        function redirectToAdmin(event) {
+            event.preventDefault();
+            window.location.href = "admin.html";
+        }
+    </script>
+
+
+</body>
+</html>

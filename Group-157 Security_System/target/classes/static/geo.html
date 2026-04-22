@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin System</title>
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""
+    >
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+        min-height: 100vh;
+    }
+
+    .layout {
+        display: flex;
+        min-height: 100vh;
+    }
+
+    .sidebar {
+        width: 220px;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.95);
+        border-right: 1px solid rgba(148, 163, 184, 0.2);
+        padding: 14px 10px;
+        position: sticky;
+        top: 0;
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+
+    .sidebar.collapsed {
+        width: 70px;
+    }
+
+    .sidebar-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+        padding: 4px 2px;
+    }
+
+    .brand {
+        color: #cbd5e1;
+        font-size: 13px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .toggle-btn {
+        border: none;
+        border-radius: 8px;
+        background: #1e293b;
+        color: #e2e8f0;
+        width: 34px;
+        height: 34px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .toggle-btn:hover {
+        background: #334155;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+    }
+
+    .nav-item {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 6px 0;
+        padding: 10px 10px;
+        border-radius: 10px;
+        cursor: pointer;
+        color: #cbd5e1;
+        border: 1px solid transparent;
+        background: transparent;
+        transition: all 0.2s ease;
+    }
+
+    .nav-item:hover {
+        background: rgba(59, 130, 246, 0.15);
+        border-color: rgba(59, 130, 246, 0.3);
+    }
+
+    .nav-item.active {
+        background: linear-gradient(90deg, rgba(59, 130, 246, 0.3), rgba(99, 102, 241, 0.25));
+        border-color: rgba(99, 102, 241, 0.45);
+        color: #ffffff;
+    }
+
+    .menu-icon {
+        width: 26px;
+        text-align: center;
+        font-size: 14px;
+        font-weight: 700;
+        color: #93c5fd;
+        flex-shrink: 0;
+    }
+
+    .menu-text {
+        white-space: nowrap;
+    }
+
+    .sidebar.collapsed .menu-text,
+    .sidebar.collapsed .brand {
+        display: none;
+    }
+
+    .content {
+        flex: 1;
+        padding: 20px;
+        transition: all 0.3s ease;
+    }
+
+    .card {
+        background: rgba(30, 41, 59, 0.7);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        padding: 16px;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(2, 6, 23, 0.35);
+    }
+
+    .dashboard-frontpage {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.75), rgba(30, 27, 75, 0.72));
+        border: 1px solid rgba(148, 163, 184, 0.22);
+    }
+
+    .dashboard-header {
+        margin-bottom: 16px;
+    }
+
+    .dashboard-header h2 {
+        margin: 0;
+        font-size: 24px;
+        color: #e2e8f0;
+    }
+
+    .dashboard-header p {
+        margin: 6px 0 0;
+        color: #94a3b8;
+        font-size: 13px;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+
+    .stat-card {
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
+        backdrop-filter: blur(7px);
+        -webkit-backdrop-filter: blur(7px);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .stat-card:hover,
+    .dashboard-panel:hover {
+        transform: scale(1.01);
+        box-shadow: 0 10px 24px rgba(59, 130, 246, 0.14);
+    }
+
+    .stat-title {
+        color: #94a3b8;
+        font-size: 12px;
+        margin-bottom: 8px;
+    }
+
+    .stat-value {
+        font-size: 30px;
+        font-weight: 700;
+        color: #e2e8f0;
+    }
+
+    .secure {
+        color: #22c55e;
+    }
+
+    .dashboard-panels {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 12px;
+    }
+
+    .dashboard-panel {
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
+        backdrop-filter: blur(7px);
+        -webkit-backdrop-filter: blur(7px);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .panel-title {
+        margin: 0 0 14px;
+        font-size: 16px;
+        color: #e2e8f0;
+    }
+
+    .health-item {
+        margin-bottom: 12px;
+    }
+
+    .health-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: #94a3b8;
+        font-size: 13px;
+        margin-bottom: 6px;
+    }
+
+    .progress-track {
+        height: 8px;
+        border-radius: 999px;
+        background: #1e293b;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        border-radius: 999px;
+    }
+
+    .fill-green {
+        width: 45%;
+        background: #22c55e;
+    }
+
+    .fill-yellow {
+        width: 62%;
+        background: #f59e0b;
+    }
+
+    .threat {
+        display: inline-block;
+        margin-top: 2px;
+        font-weight: 700;
+        color: #22c55e;
+    }
+
+    .activity-list {
+        max-height: 190px;
+        overflow-y: auto;
+        border-radius: 8px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .activity-item {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 11px;
+        font-size: 13px;
+        color: #e2e8f0;
+        transition: background-color 0.2s ease;
+    }
+
+    .activity-item:nth-child(even) {
+        background: rgba(148, 163, 184, 0.07);
+    }
+
+    .activity-item:hover {
+        background: rgba(59, 130, 246, 0.18);
+    }
+
+    .activity-icon {
+        color: #3b82f6;
+        font-size: 12px;
+        flex-shrink: 0;
+    }
+
+    .logs-shell {
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 12px;
+        padding: 14px;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+
+    .logs-header h2 {
+        margin: 0;
+    }
+
+    .logs-subtitle {
+        margin: 6px 0 0;
+        color: #94a3b8;
+        font-size: 13px;
+    }
+
+    .logs-tabs {
+        margin: 14px 0 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .logs-tab-btn {
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 8px;
+        background: #1f2937;
+        color: #cbd5e1;
+        padding: 9px 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .logs-tab-btn.active {
+        color: #ffffff;
+        border-color: rgba(99, 102, 241, 0.55);
+        background: linear-gradient(90deg, #3b82f6, #6366f1);
+        box-shadow: 0 0 14px rgba(99, 102, 241, 0.38);
+    }
+
+    .logs-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .logs-input,
+    .logs-select {
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid #475569;
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 0 10px;
+        transition: all 0.2s ease;
+    }
+
+    .logs-input {
+        flex: 1;
+        min-width: 220px;
+    }
+
+    .logs-select {
+        min-width: 160px;
+    }
+
+    .logs-input:focus,
+    .logs-select:focus {
+        outline: none;
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+    }
+
+    .logs-view.hidden {
+        display: none;
+    }
+
+    .table-wrap {
+        overflow: auto;
+        max-height: 360px;
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .logs-table {
+        width: 100%;
+        min-width: 860px;
+        border-collapse: collapse;
+        background: rgba(30, 41, 59, 0.62);
+    }
+
+    .logs-table th,
+    .logs-table td {
+        text-align: left;
+        padding: 10px 11px;
+        border-bottom: 1px solid #334155;
+        font-size: 13px;
+        vertical-align: top;
+    }
+
+    .logs-table th {
+        background: #334155;
+        color: #e2e8f0;
+    }
+
+    .logs-table tbody tr:nth-child(even) {
+        background: rgba(148, 163, 184, 0.07);
+    }
+
+    .logs-table tbody tr:hover {
+        background: rgba(59, 130, 246, 0.16);
+    }
+
+    .mono {
+        font-family: "Consolas", "Courier New", monospace;
+    }
+
+    .count-high { color: #ef4444; font-weight: 700; }
+    .count-medium { color: #f59e0b; font-weight: 700; }
+    .count-low { color: #22c55e; font-weight: 700; }
+
+    .tag-badge {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        margin-right: 4px;
+    }
+
+    .tag-danger {
+        background: rgba(239, 68, 68, 0.86);
+        color: #fee2e2;
+    }
+
+    .tag-warn {
+        background: rgba(245, 158, 11, 0.86);
+        color: #fef3c7;
+    }
+
+    .tag-normal {
+        background: rgba(34, 197, 94, 0.8);
+        color: #dcfce7;
+    }
+
+    .geo-card {
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 12px;
+        padding: 14px;
+        box-shadow: 0 10px 25px rgba(2, 6, 23, 0.35);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+
+    .geo-head h2 {
+        margin: 0;
+    }
+
+    .geo-head p {
+        margin: 6px 0 12px;
+        color: #94a3b8;
+        font-size: 13px;
+    }
+
+    #geoMap {
+        width: 100%;
+        height: 400px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        overflow: hidden;
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
+    }
+
+    .geo-table-wrap {
+        margin-top: 12px;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .geo-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: rgba(15, 23, 42, 0.65);
+    }
+
+    .geo-table th,
+    .geo-table td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid #334155;
+        font-size: 13px;
+    }
+
+    .geo-table th {
+        background: #334155;
+        color: #e2e8f0;
+    }
+
+    .geo-table tbody tr:nth-child(even) {
+        background: rgba(148, 163, 184, 0.07);
+    }
+
+    .geo-table tbody tr:hover {
+        background: rgba(59, 130, 246, 0.15);
+    }
+
+    .pulse-marker {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: rgba(239, 68, 68, 0.95);
+        border: 2px solid rgba(254, 202, 202, 0.9);
+        box-shadow: 0 0 0 rgba(239, 68, 68, 0.75);
+        animation: pulse 1.6s ease-out infinite, markerFadeIn 0.45s ease;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(0.92);
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.75);
+        }
+        70% {
+            transform: scale(1.15);
+            box-shadow: 0 0 0 14px rgba(239, 68, 68, 0);
+        }
+        100% {
+            transform: scale(0.92);
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+        }
+    }
+
+    @keyframes markerFadeIn {
+        from { opacity: 0; transform: scale(0.5); }
+        to { opacity: 1; transform: scale(1); }
+    }
+
+    .leaflet-popup-content-wrapper,
+    .leaflet-popup-tip {
+        background: #0f172a;
+        color: #e2e8f0;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+
+    .profile-layout {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 12px;
+    }
+
+    .profile-header-card {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 10px 26px rgba(2, 6, 23, 0.35);
+    }
+
+    .profile-id {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .avatar {
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, #3b82f6, #6366f1);
+        color: #ffffff;
+        font-size: 20px;
+        font-weight: 700;
+        box-shadow: 0 0 18px rgba(59, 130, 246, 0.3);
+    }
+
+    .profile-name {
+        margin: 0;
+        font-size: 19px;
+        color: #e2e8f0;
+    }
+
+    .profile-role {
+        margin: 4px 0 0;
+        font-size: 13px;
+        color: #94a3b8;
+    }
+
+    .verified-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        padding: 6px 11px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #dcfce7;
+        background: rgba(34, 197, 94, 0.22);
+        border: 1px solid rgba(34, 197, 94, 0.55);
+    }
+
+    .profile-card {
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 12px;
+        padding: 14px;
+        box-shadow: 0 8px 22px rgba(2, 6, 23, 0.3);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .profile-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 26px rgba(59, 130, 246, 0.14);
+    }
+
+    .profile-card h3 {
+        margin: 0 0 12px;
+        font-size: 15px;
+        color: #e2e8f0;
+    }
+
+    .info-row {
+        display: grid;
+        grid-template-columns: 145px 1fr;
+        gap: 10px;
+        padding: 7px 0;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        color: #94a3b8;
+        font-size: 13px;
+    }
+
+    .info-value {
+        color: #e2e8f0;
+        font-size: 13px;
+        text-align: right;
+    }
+
+    .status-active {
+        color: #22c55e;
+        font-weight: 700;
+    }
+
+    .access-full {
+        color: #60a5fa;
+        font-weight: 700;
+    }
+
+    .verification-list {
+        display: grid;
+        gap: 8px;
+    }
+
+    .verification-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.55);
+    }
+
+    .check {
+        color: #22c55e;
+        font-weight: 700;
+    }
+
+    .clearance {
+        margin-top: 10px;
+        display: inline-block;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #bfdbfe;
+        background: rgba(59, 130, 246, 0.25);
+        border: 1px solid rgba(59, 130, 246, 0.5);
+    }
+
+    .mini-stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .mini-stat {
+        border-radius: 10px;
+        padding: 10px;
+        background: rgba(15, 23, 42, 0.55);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .mini-label {
+        font-size: 11px;
+        color: #94a3b8;
+    }
+
+    .mini-value {
+        margin-top: 5px;
+        font-size: 18px;
+        font-weight: 700;
+        color: #e2e8f0;
+    }
+
+    .profile-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 12px;
+    }
+
+    .edit-btn {
+        border: 1px solid rgba(59, 130, 246, 0.5);
+        border-radius: 8px;
+        background: rgba(59, 130, 246, 0.18);
+        color: #e2e8f0;
+        padding: 8px 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .edit-btn:hover {
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.35);
+        background: rgba(59, 130, 246, 0.28);
+    }
+
+    .settings-layout {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 12px;
+    }
+
+    .settings-card {
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 12px;
+        padding: 14px;
+        box-shadow: 0 8px 22px rgba(2, 6, 23, 0.32);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+
+    .settings-card h3 {
+        margin: 0 0 12px;
+        font-size: 15px;
+        color: #e2e8f0;
+    }
+
+    .settings-card.full {
+        grid-column: 1 / -1;
+    }
+
+    .control-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .control-btn {
+        border: none;
+        border-radius: 8px;
+        padding: 9px 13px;
+        color: #ffffff;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .control-btn:hover {
+        transform: scale(1.02);
+    }
+
+    .btn-blue { background: #3b82f6; }
+    .btn-red { background: #ef4444; }
+    .btn-purple { background: #8b5cf6; }
+    .btn-green { background: #16a34a; }
+
+    .btn-blue:hover { box-shadow: 0 0 14px rgba(59, 130, 246, 0.45); }
+    .btn-red:hover { box-shadow: 0 0 14px rgba(239, 68, 68, 0.4); }
+    .btn-purple:hover { box-shadow: 0 0 14px rgba(139, 92, 246, 0.42); }
+    .btn-green:hover { box-shadow: 0 0 14px rgba(34, 197, 94, 0.42); }
+
+    .toggle-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .toggle-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: #e2e8f0;
+        font-size: 13px;
+    }
+
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 44px;
+        height: 24px;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        inset: 0;
+        cursor: pointer;
+        background: #64748b;
+        border-radius: 999px;
+        transition: 0.2s;
+    }
+
+    .slider:before {
+        content: "";
+        position: absolute;
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        top: 3px;
+        background: #ffffff;
+        border-radius: 50%;
+        transition: 0.2s;
+    }
+
+    .switch input:checked + .slider {
+        background: #22c55e;
+    }
+
+    .switch input:checked + .slider:before {
+        transform: translateX(20px);
+    }
+
+    .config-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 10px;
+    }
+
+    .config-field label {
+        display: block;
+        margin-bottom: 6px;
+        color: #94a3b8;
+        font-size: 12px;
+    }
+
+    .config-field input {
+        width: 100%;
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid #475569;
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 0 10px;
+    }
+
+    .config-field input:focus {
+        outline: none;
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+    }
+
+    .db-meta {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 10px;
+        font-size: 13px;
+    }
+
+    .db-label {
+        color: #94a3b8;
+    }
+
+    .db-value {
+        color: #e2e8f0;
+        margin-left: 8px;
+    }
+
+    .connected {
+        color: #22c55e;
+        font-weight: 700;
+    }
+
+    .danger-zone {
+        border: 1px solid rgba(239, 68, 68, 0.45);
+        background: rgba(127, 29, 29, 0.22);
+    }
+
+    .danger-text {
+        margin: 0 0 10px;
+        color: #fca5a5;
+        font-size: 12px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th, td {
+        padding: 10px;
+        border: 1px solid #334155;
+        text-align: center;
+    }
+
+    th {
+        background: #334155;
+    }
+
+    tr:hover {
+        background: #475569;
+    }
+
+    button {
+        padding: 6px 12px;
+        background: crimson;
+        border: none;
+        color: white;
+        cursor: pointer;
+        border-radius: 6px;
+        margin-right: 8px;
+    }
+
+    .top-btn {
+        margin-bottom: 10px;
+        background: #3b82f6;
+    }
+
+    li {
+        margin: 8px 0;
+        color: #cbd5e1;
+    }
+
+    .muted {
+        color: #94a3b8;
+        margin-top: 8px;
+    }
+</style>
+</head>
+<body>
+<div class="layout">
+    <aside id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">Admin Console</div>
+            <button id="toggleSidebar" class="toggle-btn" type="button" title="Toggle Sidebar">?</button>
+        </div>
+
+        <div class="nav-item" data-section="dashboard" onclick="window.location.href='dashboard.html'" title="Dashboard">
+            <span class="menu-icon">D</span>
+            <span class="menu-text">Dashboard</span>
+        </div>
+        <div class="nav-item" data-section="logs" onclick="window.location.href='logs.html'" title="Logs">
+            <span class="menu-icon">L</span>
+            <span class="menu-text">Logs</span>
+        </div>
+        <div class="nav-item active" data-section="geo" onclick="window.location.href='geo.html'" title="Geo Heatmap">
+            <span class="menu-icon">G</span>
+            <span class="menu-text">Geo Heatmap</span>
+        </div>
+        <div class="nav-item" data-section="attackGraphs" onclick="window.location.href='attack.html'" title="Attack Graphs">
+            <span class="menu-icon">A</span>
+            <span class="menu-text">Attack Graphs</span>
+        </div>
+        <div class="nav-item" data-section="profile" onclick="window.location.href='profile.html'" title="Admin Profile">
+            <span class="menu-icon">A</span>
+            <span class="menu-text">Admin Profile</span>
+        </div>
+    </aside>
+
+    <main class="content">
+        <div id="geo" class="card">
+            <div class="geo-card">
+                <div class="geo-head">
+                    <h2>Geo Heatmap</h2>
+                    <p>Real-time attack distribution and location intelligence</p>
+                </div>
+
+                <div id="geoMap"></div>
+
+                <div class="geo-table-wrap">
+                    <table class="geo-table">
+                        <thead>
+                            <tr>
+                                <th>Country</th>
+                                <th>IP Address</th>
+                                <th>Number of Attacks</th>
+                            </tr>
+                        </thead>
+                        <tbody id="geoAttackTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+></script>
+<script>
+
+// ===== GEO HEATMAP =====
+
+let geoMap = null;
+let geoMarkersLayer = null;
+let geoSimulationStarted = false;
+const geoAttacks = [
+    { lat: 19.0760, lng: 72.8777, ip: "103.87.44.19", country: "India (Mumbai)", attacks: 37 },
+    { lat: 40.7128, lng: -74.0060, ip: "45.12.91.77", country: "USA (New York)", attacks: 24 },
+    { lat: 55.7558, lng: 37.6173, ip: "91.203.5.140", country: "Russia (Moscow)", attacks: 42 },
+    { lat: 52.5200, lng: 13.4050, ip: "85.11.220.18", country: "Germany (Berlin)", attacks: 19 }
+];
+
+function renderGeoTable() {
+    const table = document.getElementById("geoAttackTable");
+    table.innerHTML = "";
+    geoAttacks.forEach(item => {
+        table.innerHTML += `
+            <tr>
+                <td>${item.country}</td>
+                <td>${item.ip}</td>
+                <td>${item.attacks}</td>
+            </tr>
+        `;
+    });
+}
+
+function pulseIcon() {
+    return L.divIcon({
+        className: "",
+        html: '<div class="pulse-marker"></div>',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+    });
+}
+
+function renderGeoMarkers() {
+    if (!geoMap) return;
+    if (geoMarkersLayer) {
+        geoMarkersLayer.clearLayers();
+    } else {
+        geoMarkersLayer = L.layerGroup().addTo(geoMap);
+    }
+
+    geoAttacks.forEach(item => {
+        const marker = L.marker([item.lat, item.lng], { icon: pulseIcon() });
+        marker.bindPopup(`
+            <strong>${item.country}</strong><br>
+            IP: ${item.ip}<br>
+            Attacks: ${item.attacks}
+        `);
+        marker.addTo(geoMarkersLayer);
+    });
+}
+
+function startGeoAttackSimulation() {
+    if (geoSimulationStarted) return;
+    geoSimulationStarted = true;
+
+    const pools = [
+    { lat: 28.6139, lng: 77.2090, country: "India (Delhi)" },
+    { lat: 19.0760, lng: 72.8777, country: "India (Mumbai)" },
+
+    { lat: 34.0522, lng: -118.2437, country: "USA (Los Angeles)" },
+    { lat: 40.7128, lng: -74.0060, country: "USA (New York)" },
+
+    { lat: 51.5074, lng: -0.1278, country: "UK (London)" },
+    { lat: 48.8566, lng: 2.3522, country: "France (Paris)" },
+    { lat: 52.5200, lng: 13.4050, country: "Germany (Berlin)" },
+
+    { lat: 55.7558, lng: 37.6173, country: "Russia (Moscow)" },
+
+    { lat: 35.6762, lng: 139.6503, country: "Japan (Tokyo)" },
+    { lat: 31.2304, lng: 121.4737, country: "China (Shanghai)" },
+    { lat: 37.5665, lng: 126.9780, country: "South Korea (Seoul)" },
+
+    { lat: -33.8688, lng: 151.2093, country: "Australia (Sydney)" },
+
+    { lat: -23.5505, lng: -46.6333, country: "Brazil (Sao Paulo)" },
+    { lat: -34.6037, lng: -58.3816, country: "Argentina (Buenos Aires)" },
+
+    { lat: 25.276987, lng: 55.296249, country: "UAE (Dubai)" },
+
+    { lat: 30.0444, lng: 31.2357, country: "Egypt (Cairo)" },
+    { lat: -1.2921, lng: 36.8219, country: "Kenya (Nairobi)" }
+];
+
+    setInterval(() => {
+        const pick = pools[Math.floor(Math.random() * pools.length)];
+        const simulatedIp = `${Math.floor(Math.random() * 223) + 1}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+        geoAttacks.unshift({
+            lat: pick.lat,
+            lng: pick.lng,
+            ip: simulatedIp,
+            country: pick.country,
+            attacks: Math.floor(Math.random() * 80) + 10
+        });
+        if (geoAttacks.length > 12) {
+            geoAttacks.pop();
+        }
+        renderGeoMarkers();
+        renderGeoTable();
+    }, 7000);
+}
+
+function simulateLiveChanges() {
+    geoAttacks.forEach(item => {
+        // Increase attacks randomly
+        const increase = Math.floor(Math.random() * 4);
+        item.attacks += increase;
+
+        // Sometimes decrease (realistic fluctuation)
+        if (Math.random() < 0.2) {
+            item.attacks = Math.max(1, item.attacks - 2);
+        }
+    });
+
+    renderGeoMarkers();
+    renderGeoTable();
+}
+
+function initGeoHeatmap() {
+    if (!geoMap) {
+        geoMap = L.map("geoMap", {
+            worldCopyJump: true,
+            zoomControl: true
+        }).setView([20, 0], 2);
+
+        L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+        }).addTo(geoMap);
+    }
+    
+    renderGeoMarkers();
+    renderGeoTable();
+    startGeoAttackSimulation();
+
+    setInterval(simulateLiveChanges, 5000);
+}
+
+
+
+// ===== INITIAL LOAD =====
+initGeoHeatmap();
+if (geoMap) {
+    setTimeout(() => geoMap.invalidateSize(), 120);
+}
+
+// ===== TRACK ATTACKER =====
+fetch("/admin-log");
+
+// ===== SIDEBAR TOGGLE =====
+document.getElementById("toggleSidebar").addEventListener("click", () => {
+    document.getElementById("sidebar").classList.toggle("collapsed");
+});
+</script>
+</body>
+</html>

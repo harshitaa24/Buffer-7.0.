@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>System Settings</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.7);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        h3 {
+            margin-bottom: 12px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            color: white;
+            font-weight: 600;
+        }
+
+        .blue { background: #3b82f6; }
+        .red { background: #ef4444; }
+        .purple { background: #8b5cf6; }
+        .green { background: #16a34a; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        input {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #475569;
+            background: #0f172a;
+            color: white;
+        }
+
+        .danger {
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            background: rgba(127, 29, 29, 0.2);
+        }
+
+        .status {
+            color: #22c55e;
+            font-weight: bold;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>⚙️ System Settings</h1>
+
+    <!-- SYSTEM CONTROLS -->
+    <div class="card">
+        <h3>System Controls</h3>
+        <div class="control-row">
+            <button class="blue" onclick="restart()">Restart Server</button>
+            <button class="red" onclick="confirmDeleteLogs()">Delete Logs</button>
+            <button class="purple" onclick="runQuery()">Run SQL Query</button>
+        </div>
+    </div>
+
+    <!-- CONFIG -->
+    <div class="card">
+        <h3>System Configuration</h3>
+        <div class="grid">
+            <input type="number" value="5" placeholder="Max Login Attempts">
+            <input type="number" value="120" placeholder="Rate Limit">
+            <input type="number" value="900" placeholder="Timeout">
+        </div>
+    </div>
+
+    <!-- DATABASE -->
+    <div class="card">
+        <h3>Database Settings</h3>
+        <p>Status: <span class="status">Connected</span></p>
+        <button class="green" onclick="syncDB()">Sync Database</button>
+    </div>
+
+    <!-- DANGER ZONE -->
+    <div class="card danger">
+        <h3>Danger Zone</h3>
+        <p>These actions are irreversible</p>
+        <button class="red" onclick="confirmDeleteLogs()">Clear All Logs</button>
+        <button class="red" onclick="confirmResetSystem()">Reset System</button>
+    </div>
+
+</div>
+
+<script>
+
+function restart() {
+    fetch("/api/restart", { method: "POST" })
+        .then(res => res.text())
+        .then(msg => alert(msg));
+}
+
+function confirmDeleteLogs() {
+    if (confirm("Are you sure?")) {
+        fetch("/api/delete-all", { method: "POST" })
+            .then(res => res.text())
+            .then(msg => alert(msg));
+    }
+}
+
+function confirmResetSystem() {
+    if (confirm("Reset system?")) {
+        restart();
+    }
+}
+
+function runQuery() {
+    let q = prompt("Enter SQL Query:");
+    if (!q) return;
+
+    fetch("/api/query?query=" + encodeURIComponent(q), { method: "POST" })
+        .then(res => res.text())
+        .then(msg => alert(msg));
+}
+
+function syncDB() {
+    alert("Database sync started");
+}
+
+</script>
+
+</body>
+</html>

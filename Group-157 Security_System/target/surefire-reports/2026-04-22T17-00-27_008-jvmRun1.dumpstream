@@ -1,0 +1,15 @@
+# Created at 2026-04-22T17:00:29.289
+Corrupted channel by directly writing to native stream in forked JVM 1. Stream '#'.
+
+# Created at 2026-04-22T17:00:29.294
+Corrupted channel by directly writing to native stream in forked JVM 1. Stream '# There is insufficient memory for the Java Runtime Environment to continue.'.
+
+# Created at 2026-04-22T17:00:29.297
+Corrupted channel by directly writing to native stream in forked JVM 1. Stream '# Native memory allocation (malloc) failed to allocate 1048576 bytes. Error detail: AllocateHeap'.
+
+# Created at 2026-04-22T17:00:29.299
+Corrupted channel by directly writing to native stream in forked JVM 1. Stream '# An error report file with more information is saved as:'.
+
+# Created at 2026-04-22T17:00:29.374
+Corrupted channel by directly writing to native stream in forked JVM 1. Stream '# C:\Users\parul\OneDrive\Desktop\Security_System\security-system - Copy\hs_err_pid22168.log'.
+
