@@ -1058,27 +1058,12 @@ function getPayload(log) {
 function detectTag(log, data) {
     const username = String(log.username || "").toLowerCase();
     const endpoint = String(log.endpoint || "").toLowerCase();
-    const ua = String(log.userAgent || "").toLowerCase();
 
     const now = new Date(log.time || Date.now());
 
-    // 🔥 total attempts (existing logic)
-    const attempts = data.filter(entry => entry.ip === log.ip).length;
-
-    // 🔥 RATE LIMIT WINDOW (last 10 seconds)
-    const recentRequests = data.filter(entry => {
-        if (entry.ip !== log.ip) return false;
-
-        const entryTime = new Date(entry.time || Date.now());
-        return (now - entryTime) <= 500; // 0.5 sec window
-    });
-
-    const rateCount = recentRequests.length;
-
     // ============================
-    // DETECTION RULES
+    // 🔥 SQL INJECTION DETECTION
     // ============================
-
     if (
         username.includes("'") ||
         username.includes("--") ||
@@ -1088,19 +1073,44 @@ function detectTag(log, data) {
         return "SQL Injection";
     }
 
-    else if (rateCount >= 10) {
-        return "Rate Limit Attack";   // 🔥 NEW
-    }
+    // ============================
+    // 🔥 BRUTE FORCE DETECTION
+    // ============================
+    const sameUserLogs = data.filter(entry =>
+        entry.ip === log.ip &&
+        String(entry.username || "").toLowerCase() === username
+    );
 
-    else if (
-        attempts >= 5 ||
-        ua.includes("curl") ||
-        ua.includes("python")
-    ) {
+    const uniquePasswords = new Set(
+        sameUserLogs.map(entry =>
+            String(entry.password || entry.payload || "").toLowerCase()
+        )
+    );
+
+    if (uniquePasswords.size >= 4) {
         return "Brute Force";
     }
 
-    return "Normal";
+    // ============================
+    // 🔥 RATE LIMIT DETECTION (LOW PRIORITY)
+    // ============================
+    const recentRequests = data.filter(entry => {
+        if (entry.ip !== log.ip) return false;
+
+        const entryTime = new Date(entry.time || Date.now());
+        return (now - entryTime) <= 500; // 0.5 sec window
+    });
+
+    const rateCount = recentRequests.length;
+
+    if (rateCount >= 10) {
+        return "Rate Limit Attack";
+    }
+
+    // ============================
+    // ✅ NORMAL TRAFFIC
+    // ============================
+    return "Endpoint Accessed";
 }
 
 function filterLogs() {
