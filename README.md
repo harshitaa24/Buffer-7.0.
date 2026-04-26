@@ -47,7 +47,7 @@ The system focuses on monitoring attacker behavior rather than immediately block
 - Graph – Attack flow tracking  
 - Trie – Pattern detection  
 - Queue – BFS traversal  
-- HashMap & HashSet – Store IPs and number of attempts  
+- HashMap & HashSet – Store IPs, Username, passwords and number of attempts  
 - Sliding Window – Timestamp-based activity tracking  
 
 ### Backend
