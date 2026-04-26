@@ -5,7 +5,7 @@ import java.util.*;
 
 @Service
 public class DetectionEngine {
-
+    private Map<String, Set<String>> userPasswords = new HashMap<>();
     private Map<String, Integer> attempts = new HashMap<>();
     private Map<String, Queue<Long>> requestTimes = new HashMap<>();
     private Trie trie = new Trie();
@@ -18,22 +18,32 @@ public class DetectionEngine {
         trie.insert("<SCRIPT>");
     }
 
-    public boolean isSuspicious(String ip, String username, String userAgent) {
+    public boolean isSuspicious(String ip, String username, String password, String userAgent) {
+    attempts.put(ip, attempts.getOrDefault(ip, 0) + 1);
+    if (isRateLimited(ip)) return true;
 
-        if (isRateLimited(ip)) return true;
+    String key = ip + ":" + username;
 
-        attempts.put(ip, attempts.getOrDefault(ip, 0) + 1);
-        if (attempts.get(ip) > 2) return true;
+    // initialize set
+    userPasswords.putIfAbsent(key, new HashSet<>());
 
-        if (isPatternSuspicious(username)) return true;
+    // add PASSWORD 
+    userPasswords.get(key).add(password);
 
-        if (userAgent != null &&
-                (userAgent.contains("curl") || userAgent.contains("python"))) {
-            return true;
-        }
-
-        return false;
+    // brute force detection
+    if (userPasswords.get(key).size() >= 4) {
+        return true;
     }
+
+    if (isPatternSuspicious(username)) return true;
+
+    if (userAgent != null &&
+            (userAgent.contains("curl") || userAgent.contains("python"))) {
+        return true;
+    }
+
+    return false;
+}
 
     private boolean isRateLimited(String ip) {
 
