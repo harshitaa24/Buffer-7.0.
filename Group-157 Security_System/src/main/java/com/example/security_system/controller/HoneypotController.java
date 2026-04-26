@@ -29,7 +29,7 @@ public class HoneypotController {
     private FakeDatabase fakeDB;
 
     @Autowired
-    private AttackGraph attackGraph;   // ✅ NEW
+    private AttackGraph attackGraph;
 
     private List<String> fakeFiles = List.of(
             "salary_data.xlsx",
@@ -38,25 +38,40 @@ public class HoneypotController {
             "server_backup.zip"
     );
 
-    // ===== LOGIN =====
+    // =========================
+    // 🔥 COMMON IP METHOD
+    // =========================
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+
+        if (ip == null || ip.isEmpty()) {
+            ip = request.getRemoteAddr();
+        }
+
+        return ip;
+    }
+
+    // =========================
+    // LOGIN
+    // =========================
     @PostMapping("/login")
     public String login(@RequestParam String username,
                         @RequestParam String password,
                         HttpServletRequest request) {
 
-        String ip = request.getRemoteAddr();
+        String ip = getClientIp(request);
         String agent = request.getHeader("User-Agent");
 
-        attackGraph.recordRequest(ip, "/login");   // ✅ NEW
+        attackGraph.recordRequest(ip, "/login");
 
-        boolean suspicious = detector.isSuspicious(ip, username, agent);
+        boolean suspicious = detector.isSuspicious(ip, username, password, agent);
 
         LogEntry log = new LogEntry(
-                ip,
-                "/login",
-                username,
-                password,
-                agent,
+                ip, "/login", username, password, agent,
                 suspicious ? "Suspicious" : "Normal"
         );
 
@@ -75,7 +90,9 @@ public class HoneypotController {
         return suspicious ? "SUCCESS" : "FAILED";
     }
 
-    // ===== ADMIN LOGIN =====
+    // =========================
+    // ADMIN LOGIN
+    // =========================
     @PostMapping("/real-admin")
     public void adminLogin(@RequestParam String username,
                            @RequestParam String password,
@@ -91,18 +108,18 @@ public class HoneypotController {
         response.getWriter().write("Access Denied");
     }
 
-    // ===== DASHBOARD =====
+    // =========================
+    // DASHBOARD STATS
+    // =========================
     @GetMapping("/api/dashboard")
     public Map<String, Object> getDashboardStats(HttpSession session) {
 
         Boolean admin = (Boolean) session.getAttribute("admin");
-        if (admin == null || !admin) {
-            return Map.of();
-        }
+        if (admin == null || !admin) return Map.of();
 
         int totalAttacks = realLogs.size();
-
         Set<String> uniqueIPs = new HashSet<>();
+
         for (LogEntry log : realLogs) {
             uniqueIPs.add(log.ip);
         }
@@ -110,201 +127,153 @@ public class HoneypotController {
         int activeAttackers = uniqueIPs.size();
 
         LocalDateTime now = LocalDateTime.now();
-        int requestsPerMinute = 0;
+        int rpm = 0;
 
         for (LogEntry log : realLogs) {
             if (log.timestamp.isAfter(now.minusMinutes(1))) {
-                requestsPerMinute++;
+                rpm++;
             }
         }
 
         return Map.of(
                 "totalAttacks", totalAttacks,
                 "activeAttackers", activeAttackers,
-                "requestsPerMinute", requestsPerMinute
+                "requestsPerMinute", rpm
         );
     }
 
-    // ===== ATTACK GRAPH API =====
+    // =========================
+    // GRAPH API
+    // =========================
     @GetMapping("/api/routes")
     public Map<String, List<List<String>>> getRoutes() {
-    return attackGraph.getRoutes();
-}
-
-    // ===== GET RAW LOGS =====
-    @GetMapping("/logs")
-    public Object getLogs(HttpSession session) {
-
-        Boolean admin = (Boolean) session.getAttribute("admin");
-
-        if (admin == null || !admin) {
-            return "Access Denied";
-        }
-
-        return realLogs;
+        return attackGraph.getRoutes();
     }
 
-    // ===== SUMMARY LOGS =====
-    @GetMapping("/summary-logs")
-    public List<Map<String, Object>> getSummaryLogs(HttpSession session) {
-
-        Boolean admin = (Boolean) session.getAttribute("admin");
-
-        if (admin == null || !admin) {
-            return Collections.emptyList();
-        }
-
-        Map<String, List<LogEntry>> grouped = new HashMap<>();
-
-        for (LogEntry log : realLogs) {
-            grouped.computeIfAbsent(log.ip, k -> new ArrayList<>()).add(log);
-        }
-
-        List<Map<String, Object>> summary = new ArrayList<>();
-
-        for (String ip : grouped.keySet()) {
-
-            List<LogEntry> logs = grouped.get(ip);
-
-            Set<String> uniqueEndpoints = new HashSet<>();
-            LocalDateTime firstSeen = logs.get(0).timestamp;
-            LocalDateTime lastSeen = logs.get(0).timestamp;
-
-            for (LogEntry log : logs) {
-                uniqueEndpoints.add(log.endpoint);
-
-                if (log.timestamp.isBefore(firstSeen)) {
-                    firstSeen = log.timestamp;
-                }
-
-                if (log.timestamp.isAfter(lastSeen)) {
-                    lastSeen = log.timestamp;
-                }
-            }
-
-            Map<String, Object> row = new HashMap<>();
-            row.put("ip", ip);
-            row.put("totalAttempts", logs.size());
-            row.put("uniqueEndpoints", uniqueEndpoints.size());
-            row.put("firstSeen", firstSeen);
-            row.put("lastSeen", lastSeen);
-
-            summary.add(row);
-        }
-
-        return summary;
-    }
-
-    // ===== FILES =====
-    @GetMapping("/api/files")
-    public List<String> getFiles() {
-        return fakeFiles;
-    }
-
-    @GetMapping("/api/download")
-    public String download(@RequestParam String file,
-                           HttpServletRequest request) {
-
-        String ip = request.getRemoteAddr();
-
-        attackGraph.recordRequest(ip, "DOWNLOAD_" + file);  // ✅ NEW
-
-        LogEntry log = new LogEntry(
-                ip,
-                "DOWNLOAD_" + file,
-                "-",
-                "-",
-                "fake",
-                "Suspicious"
-        );
-
-        realLogs.add(log);
-        saveToFile(log);
-
-        return "Downloading " + file + "...";
-    }
-
-    // ===== BFS SHORTEST PATH =====
-@GetMapping("/api/bfs")
+    //BFS
+    // =========================
+        @GetMapping("/api/bfs")
 public List<String> getShortestPath(
         @RequestParam String start,
         @RequestParam String target) {
 
     return attackGraph.bfsShortestPath(start, target);
 }
+    // =========================
+    // LOGS
+    // =========================
+    @GetMapping("/logs")
+    public Object getLogs(HttpSession session) {
+        Boolean admin = (Boolean) session.getAttribute("admin");
+        return (admin == null || !admin) ? "Access Denied" : realLogs;
+    }
 
-    // ===== FAKE ACTIONS =====
-    @PostMapping("/api/restart")
-    public String restart(HttpServletRequest request) {
+    // =========================
+    // FILE DOWNLOAD
+    // =========================
+    @GetMapping("/api/download")
+    public String download(@RequestParam String file, HttpServletRequest request) {
 
-        String ip = request.getRemoteAddr();
+        String ip = getClientIp(request);
 
-        attackGraph.recordRequest(ip, "RESTART");   // ✅ NEW
+        attackGraph.recordRequest(ip, "DOWNLOAD_" + file);
 
-        LogEntry log = new LogEntry(
-                ip,
-                "RESTART",
-                "-",
-                "-",
-                "fake",
-                "Suspicious"
-        );
-
+        LogEntry log = new LogEntry(ip, "DOWNLOAD_" + file, "-", "-", "fake", "Suspicious");
         realLogs.add(log);
         saveToFile(log);
+
+        return "Downloading " + file;
+    }
+
+    // =========================
+    // 🔥 NEW ACTIONS (IMPORTANT)
+    // =========================
+    @GetMapping("/api/files")
+public List<String> getFiles() {
+    return fakeFiles;
+}
+
+    @PostMapping("/api/sync")
+    public String sync(HttpServletRequest request) {
+        String ip = getClientIp(request);
+
+        attackGraph.recordRequest(ip, "SYNC");
+
+        realLogs.add(new LogEntry(ip, "SYNC", "-", "-", "fake", "Suspicious"));
+        saveToFile(realLogs.get(realLogs.size()-1));
+
+        return "Database synced";
+    }
+
+    @PostMapping("/api/clear-logs")
+    public String clearLogs(HttpServletRequest request) {
+        String ip = getClientIp(request);
+
+        attackGraph.recordRequest(ip, "CLEAR_LOGS");
+
+        realLogs.add(new LogEntry(ip, "CLEAR_LOGS", "-", "-", "fake", "Critical"));
+        saveToFile(realLogs.get(realLogs.size()-1));
+
+        return "Logs cleared";
+    }
+
+    @PostMapping("/api/reset")
+    public String resetSystem(HttpServletRequest request) {
+        String ip = getClientIp(request);
+
+        attackGraph.recordRequest(ip, "RESET_SYSTEM");
+
+        realLogs.add(new LogEntry(ip, "RESET_SYSTEM", "-", "-", "fake", "Critical"));
+        saveToFile(realLogs.get(realLogs.size()-1));
+
+        return "System reset";
+    }
+
+    // =========================
+    // EXISTING ACTIONS
+    // =========================
+    @PostMapping("/api/restart")
+    public String restart(HttpServletRequest request) {
+        String ip = getClientIp(request);
+
+        attackGraph.recordRequest(ip, "RESTART");
+
+        realLogs.add(new LogEntry(ip, "RESTART", "-", "-", "fake", "Suspicious"));
+        saveToFile(realLogs.get(realLogs.size()-1));
 
         return "Server restarted";
     }
 
     @PostMapping("/api/delete-all")
     public String deleteAll(HttpServletRequest request) {
+        String ip = getClientIp(request);
 
-        String ip = request.getRemoteAddr();
+        attackGraph.recordRequest(ip, "DELETE_ALL");
 
-        attackGraph.recordRequest(ip, "DELETE_ALL");   // ✅ NEW
-
-        LogEntry log = new LogEntry(
-                ip,
-                "DELETE_ALL",
-                "-",
-                "-",
-                "fake",
-                "Critical"
-        );
-
-        realLogs.add(log);
-        saveToFile(log);
+        realLogs.add(new LogEntry(ip, "DELETE_ALL", "-", "-", "fake", "Critical"));
+        saveToFile(realLogs.get(realLogs.size()-1));
 
         return "Deleted";
     }
 
     @PostMapping("/api/query")
-    public String query(@RequestParam String query,
-                        HttpServletRequest request) {
+    public String query(@RequestParam String query, HttpServletRequest request) {
+        String ip = getClientIp(request);
 
-        String ip = request.getRemoteAddr();
+        attackGraph.recordRequest(ip, "QUERY");
 
-        attackGraph.recordRequest(ip, "QUERY");   // ✅ NEW
-
-        LogEntry log = new LogEntry(
-                ip,
-                "QUERY",
-                query,
-                "-",
-                "fake",
-                "Suspicious"
-        );
-
-        realLogs.add(log);
-        saveToFile(log);
+        realLogs.add(new LogEntry(ip, "QUERY", query, "-", "fake", "Suspicious"));
+        saveToFile(realLogs.get(realLogs.size()-1));
 
         return "Executed";
     }
 
-    // ===== FILE LOGGING =====
+    
+    // =========================
+    // FILE LOGGER
+    // =========================
     private void saveToFile(LogEntry log) {
         try (FileWriter fw = new FileWriter("logs.txt", true)) {
-
             fw.write(
                     log.ip + "," +
                     log.endpoint + "," +
@@ -314,7 +283,6 @@ public List<String> getShortestPath(
                     log.timestamp + "," +
                     log.tag + "\n"
             );
-
         } catch (Exception e) {
             e.printStackTrace();
         }
