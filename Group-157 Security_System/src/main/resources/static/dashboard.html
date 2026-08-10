@@ -1041,109 +1041,220 @@
 </div>
 
 <script>
+
 let logsData = [];
 
-// ===== HELPERS =====
-function getLogTimestamp(log) {
-    return log.timestamp || log.time || log.createdAt || log.date || "N/A";
-}
 
-function getPayload(log) {
-    return log.payload || log.password || log.action || "N/A";
-}
+/* =========================================================
+   LOAD DASHBOARD DATA FROM BACKEND
+   ========================================================= */
 
-// ===== DASHBOARD =====
-function updateDashboard() {
-    const safeLogs = Array.isArray(logsData) ? logsData : [];
+function loadDashboard() {
 
-    const total = safeLogs.length;
+    fetch("http://localhost:8080/api/dashboard")
+        .then(response => {
 
-    const validIps = safeLogs.map(log => log?.ip).filter(Boolean);
-    const uniqueIps = new Set(validIps);
+            if (!response.ok) {
+                throw new Error("Failed to load dashboard");
+            }
 
-    const now = Date.now();
-
-    const requestsPerMinute = safeLogs.filter(log => {
-        const rawTs = log && (log.timestamp || log.time || log.createdAt || log.date);
-        if (!rawTs) return false;
-
-        const parsed = Date.parse(rawTs);
-        if (Number.isNaN(parsed)) return false;
-
-        return (now - parsed) <= 300000; // 5 minutes
-    }).length;
-
-    // ===== SYSTEM STATUS =====
-    let systemStatus = "SECURE";
-    if (total > 100) systemStatus = "CRITICAL";
-    else if (total > 50) systemStatus = "UNDER ATTACK";
-
-    let threatLevel = "Low";
-    if (total > 100) threatLevel = "High";
-    else if (total > 50) threatLevel = "Medium";
-
-    const cpu = Math.min(100, 20 + (total % 60));
-    const memory = Math.min(100, 30 + (uniqueIps.size * 2));
-
-    // ===== UPDATE UI =====
-    document.getElementById("totalAttacks").textContent = total;
-    document.getElementById("activeAttackers").textContent = uniqueIps.size;
-    document.getElementById("requestsPerMinute").textContent = requestsPerMinute;
-
-    document.getElementById("systemStatus").textContent = systemStatus;
-    document.getElementById("threatLevel").textContent = threatLevel;
-
-    document.getElementById("cpuUsageText").textContent = cpu + "%";
-    document.getElementById("memoryUsageText").textContent = memory + "%";
-
-    document.getElementById("cpuBar").style.width = cpu + "%";
-    document.getElementById("memoryBar").style.width = memory + "%";
-
-    // ===== ACTIVITY PANEL =====
-    const activityEl = document.getElementById("activityList");
-
-    const latestLogs = safeLogs.slice(-5).reverse();
-
-    if (latestLogs.length === 0) {
-        activityEl.innerHTML = `<div class="activity-item">No recent activity</div>`;
-        return;
-    }
-
-    activityEl.innerHTML = latestLogs.map(log => `
-        <div class="activity-item">
-            ● IP ${log.ip || "Unknown"} accessed ${log.endpoint || "unknown"} at ${getLogTimestamp(log)}
-        </div>
-    `).join("");
-}
-
-// ===== LOAD LOGS =====
-function loadLogs() {
-    fetch("/logs")
-        .then(res => res.json())
+            return response.json();
+        })
         .then(data => {
 
-            if (!Array.isArray(data)) {
-                console.error("Not authorized or invalid response:", data);
+            // Statistics now come from Spring Boot
+            document.getElementById("totalAttacks").textContent =
+                data.totalAttacks || 0;
+
+            document.getElementById("activeAttackers").textContent =
+                data.activeAttackers || 0;
+
+            document.getElementById("requestsPerMinute").textContent =
+                data.requestsPerMinute || 0;
+
+
+            /* =================================================
+               SYSTEM STATUS
+               ================================================= */
+
+            const total = data.totalAttacks || 0;
+
+            let systemStatus = "SECURE";
+            let threatLevel = "Low";
+
+            if (total > 100) {
+                systemStatus = "CRITICAL";
+                threatLevel = "High";
+            }
+            else if (total > 50) {
+                systemStatus = "UNDER ATTACK";
+                threatLevel = "Medium";
+            }
+
+            document.getElementById("systemStatus").textContent =
+                systemStatus;
+
+            document.getElementById("threatLevel").textContent =
+                threatLevel;
+
+
+            /* =================================================
+               CPU / MEMORY
+               
+               These are still simulated values for the UI.
+               They are NOT security calculations.
+               ================================================= */
+
+            const cpu =
+                Math.min(100, 20 + (total % 60));
+
+            const memory =
+                Math.min(
+                    100,
+                    30 + ((data.activeAttackers || 0) * 2)
+                );
+
+            document.getElementById("cpuUsageText").textContent =
+                cpu + "%";
+
+            document.getElementById("memoryUsageText").textContent =
+                memory + "%";
+
+            document.getElementById("cpuBar").style.width =
+                cpu + "%";
+
+            document.getElementById("memoryBar").style.width =
+                memory + "%";
+
+        })
+        .catch(error => {
+
+            console.error(
+                "Error loading dashboard:",
+                error
+            );
+        });
+}
+
+
+/* =========================================================
+   LOAD RECENT ACTIVITY
+   ========================================================= */
+
+function loadRecentActivity() {
+
+    fetch("http://localhost:8080/api/logs")
+        .then(response => {
+
+            if (!response.ok) {
+                throw new Error("Failed to load logs");
+            }
+
+            return response.json();
+        })
+        .then(data => {
+
+            logsData =
+                Array.isArray(data)
+                    ? data
+                    : [];
+
+            const activityEl =
+                document.getElementById("activityList");
+
+            const latestLogs =
+                logsData
+                    .slice(-5)
+                    .reverse();
+
+
+            if (latestLogs.length === 0) {
+
+                activityEl.innerHTML =
+                    `<div class="activity-item">
+                        No recent activity
+                     </div>`;
+
                 return;
             }
 
-            logsData = data;
-            updateDashboard();
+
+            activityEl.innerHTML =
+                latestLogs.map(log => {
+
+                    const timestamp =
+                        log.timestamp ||
+                        log.time ||
+                        log.createdAt ||
+                        log.date ||
+                        "N/A";
+
+                    return `
+                        <div class="activity-item">
+                            <span class="activity-icon">●</span>
+                            IP ${log.ip || "Unknown"}
+                            accessed
+                            ${log.endpoint || "unknown"}
+                            at ${timestamp}
+                        </div>
+                    `;
+
+                }).join("");
 
         })
-        .catch(err => console.error("Error loading logs:", err));
+        .catch(error => {
+
+            console.error(
+                "Error loading activity:",
+                error
+            );
+        });
 }
 
-// ===== AUTO REFRESH =====
-setInterval(loadLogs, 5000);
 
-// ===== INITIAL LOAD =====
-loadLogs();
+/* =========================================================
+   LOAD EVERYTHING
+   ========================================================= */
 
-// ===== SIDEBAR =====
-document.getElementById("toggleSidebar").addEventListener("click", () => {
-    document.getElementById("sidebar").classList.toggle("collapsed");
-});
+function loadDashboardData() {
+
+    loadDashboard();
+
+    loadRecentActivity();
+}
+
+
+/* =========================================================
+   AUTO REFRESH
+   ========================================================= */
+
+setInterval(
+    loadDashboardData,
+    5000
+);
+
+
+/* =========================================================
+   INITIAL LOAD
+   ========================================================= */
+
+loadDashboardData();
+
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+
+document
+    .getElementById("toggleSidebar")
+    .addEventListener("click", () => {
+
+        document
+            .getElementById("sidebar")
+            .classList.toggle("collapsed");
+
+    });
+
 </script>
 </body>
 </html>
