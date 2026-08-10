@@ -1042,11 +1042,22 @@
 <script>
 
 
+
 let logsData = [];
+
+
+/* =========================================================
+   GET TIMESTAMP
+   ========================================================= */
 
 function getLogTimestamp(log) {
     return log.timestamp || log.time || log.createdAt || log.date || "N/A";
 }
+
+
+/* =========================================================
+   GET PAYLOAD
+   ========================================================= */
 
 function getPayload(log) {
     if (log.payload) return log.payload;
@@ -1055,111 +1066,164 @@ function getPayload(log) {
     return "N/A";
 }
 
-function detectTag(log, data) {
-    const username = String(log.username || "").toLowerCase();
-    const endpoint = String(log.endpoint || "").toLowerCase();
 
-    const now = new Date(log.time || Date.now());
-
-    // ============================
-    // 🔥 SQL INJECTION DETECTION
-    // ============================
-    if (
-        username.includes("'") ||
-        username.includes("--") ||
-        username.includes(" or ") ||
-        endpoint.includes("union")
-    ) {
-        return "SQL Injection";
-    }
-
-    // ============================
-    // 🔥 BRUTE FORCE DETECTION
-    // ============================
-    const sameUserLogs = data.filter(entry =>
-        entry.ip === log.ip &&
-        String(entry.username || "").toLowerCase() === username
-    );
-
-    const uniquePasswords = new Set(
-        sameUserLogs.map(entry =>
-            String(entry.password || entry.payload || "").toLowerCase()
-        )
-    );
-
-    if (uniquePasswords.size >= 4) {
-        return "Brute Force";
-    }
-
-    // ============================
-    // 🔥 RATE LIMIT DETECTION (LOW PRIORITY)
-    // ============================
-    const recentRequests = data.filter(entry => {
-        if (entry.ip !== log.ip) return false;
-
-        const entryTime = new Date(entry.time || Date.now());
-        return (now - entryTime) <= 500; // 0.5 sec window
-    });
-
-    const rateCount = recentRequests.length;
-
-    if (rateCount >= 10) {
-        return "Rate Limit Attack";
-    }
-
-    // ============================
-    // ✅ NORMAL TRAFFIC
-    // ============================
-    return "Endpoint Accessed";
-}
+/* =========================================================
+   FILTER LOGS
+   ========================================================= */
 
 function filterLogs() {
-    const search = document.getElementById("logsSearch").value.trim().toLowerCase();
-    const endpoint = document.getElementById("logsEndpointFilter").value;
-    const ip = document.getElementById("logsIpFilter").value;
+
+    const search =
+        document.getElementById("logsSearch")
+            .value.trim().toLowerCase();
+
+    const endpoint =
+        document.getElementById("logsEndpointFilter").value;
+
+    const ip =
+        document.getElementById("logsIpFilter").value;
 
     return logsData.filter(log => {
-        const matchSearch = !search ||
-            String(log.ip || "").toLowerCase().includes(search) ||
-            String(log.username || "").toLowerCase().includes(search);
-        const matchEndpoint = !endpoint || log.endpoint === endpoint;
-        const matchIp = !ip || log.ip === ip;
-        return matchSearch && matchEndpoint && matchIp;
+
+        const matchSearch =
+            !search ||
+            String(log.ip || "")
+                .toLowerCase()
+                .includes(search) ||
+            String(log.username || "")
+                .toLowerCase()
+                .includes(search);
+
+        const matchEndpoint =
+            !endpoint || log.endpoint === endpoint;
+
+        const matchIp =
+            !ip || log.ip === ip;
+
+        return matchSearch &&
+               matchEndpoint &&
+               matchIp;
     });
 }
 
+
+/* =========================================================
+   FILTER DROPDOWNS
+   ========================================================= */
+
 function fillLogFilters() {
-    const endpointSelect = document.getElementById("logsEndpointFilter");
-    const ipSelect = document.getElementById("logsIpFilter");
+
+    const endpointSelect =
+        document.getElementById("logsEndpointFilter");
+
+    const ipSelect =
+        document.getElementById("logsIpFilter");
+
     const selectedEndpoint = endpointSelect.value;
     const selectedIp = ipSelect.value;
-    const endpoints = [...new Set(logsData.map(log => log.endpoint).filter(Boolean))].sort();
-    const ips = [...new Set(logsData.map(log => log.ip).filter(Boolean))].sort();
 
-    endpointSelect.innerHTML = '<option value="">All Endpoints</option>' +
-        endpoints.map(item => `<option value="${item}">${item}</option>`).join("");
-    ipSelect.innerHTML = '<option value="">All IPs</option>' +
-        ips.map(item => `<option value="${item}">${item}</option>`).join("");
+    const endpoints = [
+        ...new Set(
+            logsData
+                .map(log => log.endpoint)
+                .filter(Boolean)
+        )
+    ].sort();
 
-    endpointSelect.value = endpoints.includes(selectedEndpoint) ? selectedEndpoint : "";
-    ipSelect.value = ips.includes(selectedIp) ? selectedIp : "";
+    const ips = [
+        ...new Set(
+            logsData
+                .map(log => log.ip)
+                .filter(Boolean)
+        )
+    ].sort();
+
+    endpointSelect.innerHTML =
+        '<option value="">All Endpoints</option>' +
+        endpoints
+            .map(item =>
+                `<option value="${item}">${item}</option>`
+            )
+            .join("");
+
+    ipSelect.innerHTML =
+        '<option value="">All IPs</option>' +
+        ips
+            .map(item =>
+                `<option value="${item}">${item}</option>`
+            )
+            .join("");
+
+    endpointSelect.value =
+        endpoints.includes(selectedEndpoint)
+            ? selectedEndpoint
+            : "";
+
+    ipSelect.value =
+        ips.includes(selectedIp)
+            ? selectedIp
+            : "";
 }
 
+
+/* =========================================================
+   TAG CLASS
+   ========================================================= */
+
+function getTagClass(tag) {
+
+    const value = String(tag || "").toLowerCase();
+
+    if (
+        value.includes("critical") ||
+        value.includes("sql") ||
+        value.includes("suspicious")
+    ) {
+        return "tag-danger";
+    }
+
+    if (
+        value.includes("brute") ||
+        value.includes("rate") ||
+        value.includes("warning")
+    ) {
+        return "tag-warn";
+    }
+
+    return "tag-normal";
+}
+
+
+/* =========================================================
+   RENDER LOGS
+   ========================================================= */
+
 function renderLogs() {
+
     const filtered = filterLogs();
-    const rawTable = document.getElementById("rawLogsTable");
-    const summaryTable = document.getElementById("summaryLogsTable");
+
+    const rawTable =
+        document.getElementById("rawLogsTable");
+
+    const summaryTable =
+        document.getElementById("summaryLogsTable");
 
     rawTable.innerHTML = "";
     summaryTable.innerHTML = "";
 
-    // ===== GROUP DATA (for summary) =====
+
+    /* =====================================================
+       GROUP LOGS BY IP
+       ===================================================== */
+
     const grouped = {};
 
     filtered.forEach(log => {
+
         const ip = log.ip || "N/A";
 
         if (!grouped[ip]) {
+
             grouped[ip] = {
                 ip: ip,
                 attempts: 0,
@@ -1170,28 +1234,40 @@ function renderLogs() {
         }
 
         grouped[ip].attempts++;
-        grouped[ip].endpoints.add(log.endpoint || "N/A");
 
-        if (grouped[ip].firstSeen === "N/A") {
-            grouped[ip].firstSeen = getLogTimestamp(log);
-        }
+        grouped[ip].endpoints.add(
+            log.endpoint || "N/A"
+        );
 
-        grouped[ip].lastSeen = getLogTimestamp(log);
+        grouped[ip].lastSeen =
+            getLogTimestamp(log);
     });
 
-    // ===== RAW TABLE (YOUR CURRENT BEHAVIOR - KEEPING SAME) =====
+
+    /* =====================================================
+       RAW LOG TABLE
+       ===================================================== */
+
     Object.values(grouped)
-        .sort((a, b) => b.attempts - a.attempts)
+        .sort((a, b) =>
+            b.attempts - a.attempts
+        )
         .forEach(entry => {
 
             let countClass = "count-low";
-            if (entry.attempts >= 8) countClass = "count-high";
-            else if (entry.attempts >= 4) countClass = "count-medium";
+
+            if (entry.attempts >= 8) {
+                countClass = "count-high";
+            } else if (entry.attempts >= 4) {
+                countClass = "count-medium";
+            }
 
             rawTable.innerHTML += `
                 <tr>
                     <td>${entry.ip}</td>
-                    <td class="${countClass}">${entry.attempts}</td>
+                    <td class="${countClass}">
+                        ${entry.attempts}
+                    </td>
                     <td>${entry.endpoints.size}</td>
                     <td>${entry.firstSeen}</td>
                     <td>${entry.lastSeen}</td>
@@ -1199,163 +1275,199 @@ function renderLogs() {
             `;
         });
 
-    // ===== SUMMARY TABLE (DETAILED LOGS - KEEPING SAME) =====
-    filtered.forEach(log => {
-        const tag = detectTag(log, filtered);
 
-        const tagClass =
-            tag === "SQL Injection" ? "tag-danger" :
-            tag === "Brute Force" ? "tag-warn" :
-            "tag-normal";
+    /* =====================================================
+       SUMMARY / DETAILED LOG TABLE
+       ===================================================== */
+
+    filtered.forEach(log => {
+
+        // IMPORTANT:
+        // Tag comes directly from DetectionEngine/backend.
+        // No detection is performed in JavaScript.
+
+        const tag = log.tag || "Normal";
+
+        const tagClass = getTagClass(tag);
 
         summaryTable.innerHTML += `
             <tr>
                 <td>${log.ip || "N/A"}</td>
+
                 <td>${log.endpoint || "N/A"}</td>
+
                 <td>${log.username || "N/A"}</td>
-                <td class="mono">${getPayload(log)}</td>
+
+                <td class="mono">
+                    ${getPayload(log)}
+                </td>
+
                 <td>${log.userAgent || "N/A"}</td>
+
                 <td>${getLogTimestamp(log)}</td>
-                <td><span class="tag-badge ${tagClass}">${tag}</span></td>
+
+                <td>
+                    <span class="tag-badge ${tagClass}">
+                        ${tag}
+                    </span>
+                </td>
             </tr>
         `;
     });
 }
+
+
+/* =========================================================
+   SWITCH RAW / SUMMARY VIEW
+   ========================================================= */
+
 function switchLogsView(view) {
-    const rawView = document.getElementById("rawLogsView");
-    const summaryView = document.getElementById("summaryLogsView");
-    const rawBtn = document.getElementById("rawLogsBtn");
-    const summaryBtn = document.getElementById("summaryLogsBtn");
+
+    const rawView =
+        document.getElementById("rawLogsView");
+
+    const summaryView =
+        document.getElementById("summaryLogsView");
+
+    const rawBtn =
+        document.getElementById("rawLogsBtn");
+
+    const summaryBtn =
+        document.getElementById("summaryLogsBtn");
+
 
     if (view === "raw") {
+
         rawView.classList.remove("hidden");
         summaryView.classList.add("hidden");
+
         rawBtn.classList.add("active");
         summaryBtn.classList.remove("active");
+
     } else {
+
         summaryView.classList.remove("hidden");
         rawView.classList.add("hidden");
+
         summaryBtn.classList.add("active");
         rawBtn.classList.remove("active");
     }
 }
 
-function updateDashboard() {
-    const safeLogs = Array.isArray(logsData) ? logsData : [];
-    const total = safeLogs.length;
-    const validIps = safeLogs.map(log => log && log.ip).filter(Boolean);
-    const uniqueIps = new Set(validIps);
-    const now = Date.now();
 
-    const requestsPerMinute = safeLogs.filter(log => {
-        const rawTs = log && (log.timestamp || log.time || log.createdAt || log.date);
-        if (!rawTs) return false;
-        const parsed = Date.parse(rawTs);
-        if (Number.isNaN(parsed)) return false;
-        return (now - parsed) <= 60000;
-    }).length;
-
-    let systemStatus = "SECURE";
-    if (total > 100) {
-        systemStatus = "CRITICAL";
-    } else if (total > 50) {
-        systemStatus = "UNDER ATTACK";
-    }
-
-    const cpu = Math.min(100, 20 + (total % 60));
-    const memory = Math.min(100, 30 + (uniqueIps.size * 2));
-
-    let threatLevel = "Low";
-    if (total > 100) {
-        threatLevel = "High";
-    } else if (total > 50) {
-        threatLevel = "Medium";
-    }
-
-    const totalEl = document.getElementById("totalAttacks");
-    const activeEl = document.getElementById("activeAttackers");
-    const rpmEl = document.getElementById("requestsPerMinute");
-    const statusEl = document.getElementById("systemStatus");
-    const cpuTextEl = document.getElementById("cpuUsageText");
-    const memoryTextEl = document.getElementById("memoryUsageText");
-    const cpuBarEl = document.getElementById("cpuBar");
-    const memoryBarEl = document.getElementById("memoryBar");
-    const threatEl = document.getElementById("threatLevel");
-    const activityEl = document.getElementById("activityList");
-
-    if (totalEl) totalEl.textContent = total.toLocaleString();
-    if (activeEl) activeEl.textContent = uniqueIps.size.toLocaleString();
-    if (rpmEl) rpmEl.textContent = requestsPerMinute.toLocaleString();
-    if (statusEl) statusEl.textContent = systemStatus;
-    if (cpuTextEl) cpuTextEl.textContent = cpu + "%";
-    if (memoryTextEl) memoryTextEl.textContent = memory + "%";
-    if (cpuBarEl) cpuBarEl.style.width = cpu + "%";
-    if (memoryBarEl) memoryBarEl.style.width = memory + "%";
-    if (threatEl) threatEl.textContent = threatLevel;
-
-    if (activityEl) {
-        const latestLogs = safeLogs.slice(-5).reverse();
-        if (latestLogs.length === 0) {
-            activityEl.innerHTML = `
-                <div class="activity-item">
-                    <span class="activity-icon">●</span>
-                    <span>No recent activity</span>
-                </div>
-            `;
-        } else {
-            activityEl.innerHTML = latestLogs.map(log => {
-                const ip = (log && log.ip) ? log.ip : "Unknown IP";
-                const endpoint = (log && log.endpoint) ? log.endpoint : "unknown endpoint";
-                const ts = (log && (log.timestamp || log.time || log.createdAt || log.date)) || "unknown time";
-                return `
-                    <div class="activity-item">
-                        <span class="activity-icon">●</span>
-                        <span>IP ${ip} accessed ${endpoint} at ${ts}</span>
-                    </div>
-                `;
-            }).join("");
-        }
-    }
-}
+/* =========================================================
+   LOAD LOGS FROM SPRING BOOT
+   ========================================================= */
 
 function loadLogs() {
-    fetch("http://localhost:8080/logs", {
-    credentials: "include"
-})
-        .then(res => res.json())
-        .then(data => {
-            logsData = Array.isArray(data) ? data : [];
-            fillLogFilters();
-            renderLogs();
-            updateDashboard();
-            if (window.renderAttackGraphs) {
-                window.renderAttackGraphs(logsData);
-            }
-        })
-        .catch(() => alert("Error loading logs"));
+
+    fetch("http://localhost:8080/api/logs", {
+        credentials: "include"
+    })
+
+    .then(response => {
+
+        if (!response.ok) {
+            throw new Error("Failed to load logs");
+        }
+
+        return response.json();
+    })
+
+    .then(data => {
+
+        logsData =
+            Array.isArray(data)
+                ? data
+                : [];
+
+        fillLogFilters();
+
+        renderLogs();
+
+    })
+
+    .catch(error => {
+
+        console.error(error);
+
+        alert("Error loading logs");
+    });
 }
 
 
+/* =========================================================
+   AUTO REFRESH
+   ========================================================= */
 
-// ===== AUTO ACTIVITY =====
 setInterval(loadLogs, 6000);
 
-// ===== INITIAL LOAD =====
+
+/* =========================================================
+   INITIAL LOAD
+   ========================================================= */
+
 loadLogs();
 
-// ===== TRACK ATTACKER =====
-fetch("/admin-log");
 
-// ===== SIDEBAR TOGGLE =====
-document.getElementById("toggleSidebar").addEventListener("click", () => {
-    document.getElementById("sidebar").classList.toggle("collapsed");
-});
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
 
-document.getElementById("rawLogsBtn").addEventListener("click", () => switchLogsView("raw"));
-document.getElementById("summaryLogsBtn").addEventListener("click", () => switchLogsView("summary"));
-document.getElementById("logsSearch").addEventListener("input", renderLogs);
-document.getElementById("logsEndpointFilter").addEventListener("change", renderLogs);
-document.getElementById("logsIpFilter").addEventListener("change", renderLogs);
+document
+    .getElementById("toggleSidebar")
+    .addEventListener("click", () => {
+
+        document
+            .getElementById("sidebar")
+            .classList.toggle("collapsed");
+    });
+
+
+/* =========================================================
+   LOG TABS
+   ========================================================= */
+
+document
+    .getElementById("rawLogsBtn")
+    .addEventListener(
+        "click",
+        () => switchLogsView("raw")
+    );
+
+document
+    .getElementById("summaryLogsBtn")
+    .addEventListener(
+        "click",
+        () => switchLogsView("summary")
+    );
+
+
+/* =========================================================
+   SEARCH / FILTERS
+   ========================================================= */
+
+document
+    .getElementById("logsSearch")
+    .addEventListener(
+        "input",
+        renderLogs
+    );
+
+document
+    .getElementById("logsEndpointFilter")
+    .addEventListener(
+        "change",
+        renderLogs
+    );
+
+document
+    .getElementById("logsIpFilter")
+    .addEventListener(
+        "change",
+        renderLogs
+    );
+
 
 </script>
 </body>
