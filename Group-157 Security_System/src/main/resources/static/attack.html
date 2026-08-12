@@ -128,12 +128,18 @@
 <script>
 
 // ================================
+// BACKEND URL
+// ================================
+const API_BASE = "http://localhost:8080";
+
+
+// ================================
 // BFS FUNCTION
 // ================================
 async function getShortestPath() {
 
-    const start = document.getElementById("startNode").value;
-    const target = document.getElementById("targetNode").value;
+    const start = document.getElementById("startNode").value.trim();
+    const target = document.getElementById("targetNode").value.trim();
     const resultDiv = document.getElementById("bfsResult");
 
     if (!start || !target) {
@@ -142,7 +148,15 @@ async function getShortestPath() {
     }
 
     try {
-        const res = await fetch(`/api/bfs?start=${start}&target=${target}`);
+
+        const res = await fetch(
+            `${API_BASE}/api/bfs?start=${encodeURIComponent(start)}&target=${encodeURIComponent(target)}`
+        );
+
+        if (!res.ok) {
+            throw new Error("Backend returned " + res.status);
+        }
+
         const data = await res.json();
 
         if (!data || data.length === 0) {
@@ -152,24 +166,33 @@ async function getShortestPath() {
         }
 
     } catch (err) {
+
         console.error("BFS Error:", err);
-        resultDiv.innerText = "❌ Error fetching path.";
+        resultDiv.innerText = "❌ Error connecting to backend.";
+
     }
 }
 
 
 // ================================
-// EXISTING ROUTES FUNCTION (UNCHANGED)
+// LOAD ATTACK ROUTES
 // ================================
 async function loadRoutes() {
+
     const status = document.getElementById("status");
     const container = document.getElementById("routesContainer");
 
     try {
+
         status.textContent = "Loading...";
         status.className = "status loading";
 
-        const res = await fetch("/api/routes");
+        const res = await fetch(`${API_BASE}/api/routes`);
+
+        if (!res.ok) {
+            throw new Error("Backend returned " + res.status);
+        }
+
         const data = await res.json();
 
         console.log("Routes API:", data);
@@ -177,7 +200,10 @@ async function loadRoutes() {
         container.innerHTML = "";
 
         if (!data || Object.keys(data).length === 0) {
-            status.textContent = "No attack data yet. Trigger some activity.";
+
+            status.textContent =
+                "No attack data yet. Trigger some activity.";
+
             return;
         }
 
@@ -194,45 +220,93 @@ async function loadRoutes() {
 
             block.appendChild(title);
 
-            // sort routes by length
-            const sortedRoutes = data[ip].sort((a, b) => b.length - a.length);
+            // Sort routes by length
+            const sortedRoutes = [...data[ip]]
+                .sort((a, b) => b.length - a.length);
 
-            sortedRoutes.forEach((route, index) => {
+            let displayIndex = 1;
 
-                const routeEl = document.createElement("div");
-                routeEl.className = "route";
+for (let i = 0; i < sortedRoutes.length; i++) {
 
-                const routeText = route.join(" → ");
-                routeEl.textContent = `#${index + 1}: ${routeText}`;
+    const route = sortedRoutes[i];
 
-                // severity detection
-                if (routeText.includes("DELETE_ALL")) {
-                    routeEl.classList.add("danger");
-                } 
-                else if (routeText.includes("DOWNLOAD")) {
-                    routeEl.classList.add("warn");
-                } 
-                else {
-                    routeEl.classList.add("safe");
-                }
+    // Count consecutive /login routes
+    if (route.length === 1 && route[0] === "/login") {
 
-                block.appendChild(routeEl);
-            });
+        let count = 1;
+
+        while (
+            i + count < sortedRoutes.length &&
+            sortedRoutes[i + count].length === 1 &&
+            sortedRoutes[i + count][0] === "/login"
+        ) {
+            count++;
+        }
+
+        const routeEl = document.createElement("div");
+        routeEl.className = "route safe";
+
+        routeEl.textContent =
+            `#${displayIndex}: /login × ${count}`;
+
+        block.appendChild(routeEl);
+
+        displayIndex++;
+        i += count - 1;
+
+        continue;
+    }
+
+    const routeEl = document.createElement("div");
+    routeEl.className = "route";
+
+    const routeText = route.join(" → ");
+
+    routeEl.textContent =
+        `#${displayIndex}: ${routeText}`;
+
+    if (routeText.includes("DELETE_ALL")) {
+
+        routeEl.classList.add("danger");
+
+    } else if (routeText.includes("DOWNLOAD")) {
+
+        routeEl.classList.add("warn");
+
+    } else {
+
+        routeEl.classList.add("safe");
+    }
+
+    block.appendChild(routeEl);
+
+    displayIndex++;
+}
 
             container.appendChild(block);
         });
 
     } catch (err) {
+
         console.error("Error loading routes:", err);
-        status.textContent = "Error loading routes. Check backend.";
+
+        status.textContent =
+            "Error connecting to Spring Boot backend.";
+
         status.className = "status";
     }
 }
 
-// refresh every 5 sec
+
+// ================================
+// REFRESH EVERY 5 SECONDS
+// ================================
 setInterval(loadRoutes, 5000);
 
-// initial load
+
+// ================================
+// INITIAL LOAD
+// ================================
 loadRoutes();
 
 
