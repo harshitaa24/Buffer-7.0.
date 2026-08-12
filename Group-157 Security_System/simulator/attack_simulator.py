@@ -1,316 +1,506 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Attack Routes</title>
-
-    <style>
-        body {
-            margin: 0;
-            font-family: "Segoe UI", Arial, sans-serif;
-            background: #0f172a;
-            color: #e2e8f0;
-        }
-
-        .layout {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        .sidebar {
-            width: 220px;
-            background: #0f172a;
-            border-right: 1px solid #334155;
-            padding: 10px;
-        }
-
-        .nav-item {
-            padding: 10px;
-            margin: 6px 0;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-
-        .nav-item:hover {
-            background: #1e293b;
-        }
-
-        .nav-item.active {
-            background: #3b82f6;
-            color: white;
-        }
-
-        .content {
-            flex: 1;
-            padding: 20px;
-        }
-
-        .card {
-            background: #1e293b;
-            padding: 16px;
-            border-radius: 12px;
-        }
-
-        .ip-block {
-            margin-bottom: 20px;
-            padding: 12px;
-            border-radius: 10px;
-            background: rgba(15, 23, 42, 0.7);
-            border: 1px solid #334155;
-        }
-
-        .ip-title {
-            font-weight: bold;
-            margin-bottom: 8px;
-            color: #60a5fa;
-        }
-
-        .route {
-            font-family: monospace;
-            padding: 6px 10px;
-            margin: 4px 0;
-            border-radius: 6px;
-            background: #020617;
-        }
-
-        .danger { color: #ef4444; }
-        .warn { color: #f59e0b; }
-        .safe { color: #22c55e; }
-
-        .status {
-            margin-top: 10px;
-            color: #94a3b8;
-        }
-
-        .loading {
-            color: #60a5fa;
-        }
-    </style>
-</head>
-
-<body>
-
-<div class="layout">
-
-    <aside class="sidebar">
-        <div class="nav-item" onclick="location.href='dashboard.html'">Dashboard</div>
-        <div class="nav-item" onclick="location.href='logs.html'">Logs</div>
-        <div class="nav-item" onclick="location.href='geo.html'">Geo</div>
-        <div class="nav-item" onclick="location.href='attack.html'">Attack Graph</div>
-        <div class="nav-item" onclick="location.href='profile.html'">Admin Profile</div>  
-        <div class="nav-item active">Attack Routes</div>
-    </aside>
-
-    <main class="content">
-        <div class="card">
-            <h2>Attack Routes</h2>
-            <p>Actual attacker paths (no visualization noise)</p>
-
-            
-            <div style="margin-bottom: 20px;">
-                <h3>🔍 Shortest Attack Path (BFS)</h3>
-
-                <input type="text" id="startNode" placeholder="Start (e.g. /login)" />
-                <input type="text" id="targetNode" placeholder="Target (e.g. DELETE_ALL)" />
-
-                <button onclick="getShortestPath()">Find Path</button>
-
-                <div id="bfsResult" style="margin-top:10px; font-weight:bold;"></div>
-            </div>
-
-            <div id="status" class="status loading">Loading...</div>
-            <div id="routesContainer"></div>
-        </div>
-    </main>
-
-</div>
-
-<script>
-
-// ================================
-// BACKEND URL
-// ================================
-const API_BASE = "http://localhost:8080";
+import requests
+import random
+import time
+from datetime import datetime
 
 
-// ================================
-// BFS FUNCTION
-// ================================
-async function getShortestPath() {
+BASE_URL = "http://localhost:8080"
 
-    const start = document.getElementById("startNode").value.trim();
-    const target = document.getElementById("targetNode").value.trim();
-    const resultDiv = document.getElementById("bfsResult");
 
-    if (!start || !target) {
-        resultDiv.innerText = "⚠️ Please enter both start and target.";
-        return;
-    }
+# ============================================================
+# ATTACKER DATA
+# ============================================================
 
-    try {
+IPS = [
+    "192.168.1.10",
+    "10.0.0.5",
+    "172.16.0.7",
+    "203.0.113.9",
+    "45.33.32.156",
+    "103.21.244.0"
+]
 
-        const res = await fetch(
-            `${API_BASE}/api/bfs?start=${encodeURIComponent(start)}&target=${encodeURIComponent(target)}`
-        );
-
-        if (!res.ok) {
-            throw new Error("Backend returned " + res.status);
-        }
-
-        const data = await res.json();
-
-        if (!data || data.length === 0) {
-            resultDiv.innerText = "❌ No path found.";
-        } else {
-            resultDiv.innerText = "✅ " + data.join(" → ");
-        }
-
-    } catch (err) {
-
-        console.error("BFS Error:", err);
-        resultDiv.innerText = "❌ Error connecting to backend.";
-
-    }
+USER_AGENTS = {
+    "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151.0",
+    "curl": "curl/7.68.0",
+    "python": "python-requests/2.28"
 }
 
+USERNAMES = [
+    "admin",
+    "root",
+    "administrator",
+    "test",
+    "guest"
+]
 
-// ================================
-// LOAD ATTACK ROUTES
-// ================================
-async function loadRoutes() {
+PASSWORDS = [
+    "1234",
+    "admin",
+    "root",
+    "toor",
+    "password",
+    "letmein",
+    "qwerty"
+]
 
-    const status = document.getElementById("status");
-    const container = document.getElementById("routesContainer");
+SQL_PAYLOADS = [
+    "' OR '1'='1",
+    "' OR 1=1 --",
+    "admin' --",
+    "' OR 'a'='a"
+]
 
-    try {
 
-        status.textContent = "Loading...";
-        status.className = "status loading";
+# ============================================================
+# SESSION
+# ============================================================
 
-        const res = await fetch(`${API_BASE}/api/routes`);
+session = requests.Session()
 
-        if (!res.ok) {
-            throw new Error("Backend returned " + res.status);
-        }
 
-        const data = await res.json();
+# ============================================================
+# LOGGING
+# ============================================================
 
-        console.log("Routes API:", data);
+def log(message):
+    now = datetime.now().strftime("%H:%M:%S")
+    print(f"[{now}] {message}")
 
-        container.innerHTML = "";
 
-        if (!data || Object.keys(data).length === 0) {
+# ============================================================
+# HEADERS
+# ============================================================
 
-            status.textContent =
-                "No attack data yet. Trigger some activity.";
+def get_headers(ip, agent="browser"):
 
-            return;
-        }
-
-        status.textContent = "Live data updated";
-
-        Object.keys(data).forEach(ip => {
-
-            const block = document.createElement("div");
-            block.className = "ip-block";
-
-            const title = document.createElement("div");
-            title.className = "ip-title";
-            title.textContent = "IP: " + ip;
-
-            block.appendChild(title);
-
-            // Sort routes by length
-            const sortedRoutes = [...data[ip]]
-                .sort((a, b) => b.length - a.length);
-
-            let displayIndex = 1;
-
-for (let i = 0; i < sortedRoutes.length; i++) {
-
-    const route = sortedRoutes[i];
-
-    // Count consecutive /login routes
-    if (route.length === 1 && route[0] === "/login") {
-
-        let count = 1;
-
-        while (
-            i + count < sortedRoutes.length &&
-            sortedRoutes[i + count].length === 1 &&
-            sortedRoutes[i + count][0] === "/login"
-        ) {
-            count++;
-        }
-
-        const routeEl = document.createElement("div");
-        routeEl.className = "route safe";
-
-        routeEl.textContent =
-            `#${displayIndex}: /login × ${count}`;
-
-        block.appendChild(routeEl);
-
-        displayIndex++;
-        i += count - 1;
-
-        continue;
+    return {
+        "User-Agent": USER_AGENTS[agent],
+        "X-Forwarded-For": ip
     }
 
-    const routeEl = document.createElement("div");
-    routeEl.className = "route";
 
-    const routeText = route.join(" → ");
+# ============================================================
+# LOGIN
+# ============================================================
 
-    routeEl.textContent =
-        `#${displayIndex}: ${routeText}`;
+def send_login(ip, username, password, agent="browser"):
 
-    if (routeText.includes("DELETE_ALL")) {
+    try:
 
-        routeEl.classList.add("danger");
+        session.post(
+            f"{BASE_URL}/login",
+            headers=get_headers(ip, agent),
+            data={
+                "username": username,
+                "password": password
+            },
+            timeout=2
+        )
 
-    } else if (routeText.includes("DOWNLOAD")) {
+        log(
+            f"{ip} → POST /login "
+            f"(user={username})"
+        )
 
-        routeEl.classList.add("warn");
-
-    } else {
-
-        routeEl.classList.add("safe");
-    }
-
-    block.appendChild(routeEl);
-
-    displayIndex++;
-}
-
-            container.appendChild(block);
-        });
-
-    } catch (err) {
-
-        console.error("Error loading routes:", err);
-
-        status.textContent =
-            "Error connecting to Spring Boot backend.";
-
-        status.className = "status";
-    }
-}
+    except requests.RequestException:
+        log(f"{ip} → /login failed")
 
 
-// ================================
-// REFRESH EVERY 5 SECONDS
-// ================================
-setInterval(loadRoutes, 5000);
+# ============================================================
+# GENERIC REQUEST
+# ============================================================
+
+def hit(ip, endpoint, method="GET", agent="browser"):
+
+    try:
+
+        if method == "POST":
+
+            session.post(
+                f"{BASE_URL}{endpoint}",
+                headers=get_headers(ip, agent),
+                timeout=2
+            )
+
+        else:
+
+            session.get(
+                f"{BASE_URL}{endpoint}",
+                headers=get_headers(ip, agent),
+                timeout=2
+            )
+
+        log(f"{ip} → {method} {endpoint}")
+
+    except requests.RequestException:
+
+        log(f"{ip} → {method} {endpoint} failed")
 
 
-// ================================
-// INITIAL LOAD
-// ================================
-loadRoutes();
+# ============================================================
+# FILE DISCOVERY
+# ============================================================
+
+def get_files(ip, agent="python"):
+
+    try:
+
+        response = session.get(
+            f"{BASE_URL}/api/files",
+            headers=get_headers(ip, agent),
+            timeout=2
+        )
+
+        if response.status_code == 200:
+
+            files = response.json()
+
+            log(
+                f"{ip} → GET /api/files "
+                f"[{len(files)} files discovered]"
+            )
+
+            return files
+
+    except requests.RequestException:
+        pass
+
+    return []
 
 
-</script>
+# ============================================================
+# BRUTE FORCE
+# ============================================================
 
-</body>
-</html>
+def brute_force(ip):
+
+    log(f"🔐 {ip} starting credential attack")
+
+    for password in PASSWORDS:
+
+        send_login(
+            ip,
+            "admin",
+            password,
+            "python"
+        )
+
+        time.sleep(random.uniform(0.25, 0.6))
+
+
+# ============================================================
+# SQL INJECTION
+# ============================================================
+
+def sql_attack(ip):
+
+    log(f"💉 {ip} probing login for SQL injection")
+
+    for payload in SQL_PAYLOADS:
+
+        send_login(
+            ip,
+            payload,
+            "1234",
+            "python"
+        )
+
+        time.sleep(random.uniform(0.3, 0.7))
+
+
+# ============================================================
+# RATE LIMIT ATTACK
+# ============================================================
+
+def rate_attack(ip):
+
+    log(f"⚡ {ip} generating rapid requests")
+
+    for i in range(15):
+
+        send_login(
+            ip,
+            "admin",
+            "1234",
+            "python"
+        )
+
+        time.sleep(0.05)
+
+
+# ============================================================
+# RECONNAISSANCE
+# ============================================================
+
+def reconnaissance(ip):
+
+    log(f"🔎 {ip} performing reconnaissance")
+
+    # Discover available files
+    files = get_files(ip, "python")
+
+    time.sleep(random.uniform(0.5, 1.0))
+
+    return files
+
+
+# ============================================================
+# SYSTEM EXPLORATION
+# ============================================================
+
+def explore_system(ip):
+
+    log(f"🧭 {ip} probing administrative endpoints")
+
+    endpoints = [
+        ("/api/query", "POST"),
+        ("/api/sync", "POST"),
+        ("/api/restart", "POST")
+    ]
+
+    # Don't hit everything every time.
+    selected = random.sample(
+        endpoints,
+        random.randint(1, 2)
+    )
+
+    for endpoint, method in selected:
+
+        hit(
+            ip,
+            endpoint,
+            method,
+            "curl"
+        )
+
+        time.sleep(
+            random.uniform(0.5, 1.2)
+        )
+
+
+# ============================================================
+# DATA COLLECTION
+# ============================================================
+
+def collect_files(ip, files):
+
+    if not files:
+
+        return
+
+    log(f"📂 {ip} attempting file collection")
+
+    chosen = random.sample(
+        files,
+        min(
+            len(files),
+            random.randint(1, 3)
+        )
+    )
+
+    for file in chosen:
+
+        endpoint = (
+            "/api/download?file="
+            + str(file)
+        )
+
+        hit(
+            ip,
+            endpoint,
+            "GET",
+            "curl"
+        )
+
+        time.sleep(
+            random.uniform(0.5, 1.0)
+        )
+
+
+# ============================================================
+# DESTRUCTIVE / CLEANUP ACTION
+# ============================================================
+
+def cleanup(ip):
+
+    if random.random() < 0.35:
+
+        log(f"🧹 {ip} attempting cleanup")
+
+        hit(
+            ip,
+            "/api/clear-logs",
+            "POST",
+            "curl"
+        )
+
+        time.sleep(
+            random.uniform(0.5, 1.0)
+        )
+
+
+# ============================================================
+# ATTACK CAMPAIGN
+# ============================================================
+
+def attacker_campaign(ip, attack_type):
+
+    print()
+    print("=" * 65)
+
+    log(
+        f"🚨 NEW ATTACK CAMPAIGN"
+    )
+
+    log(
+        f"Source IP : {ip}"
+    )
+
+    log(
+        f"Attack type : {attack_type}"
+    )
+
+    print("=" * 65)
+
+    # --------------------------------------------------------
+    # PHASE 1 — RECONNAISSANCE
+    # --------------------------------------------------------
+
+    files = reconnaissance(ip)
+
+    time.sleep(
+        random.uniform(0.8, 1.5)
+    )
+
+    # --------------------------------------------------------
+    # PHASE 2 — CREDENTIAL ATTACK
+    # --------------------------------------------------------
+
+    if attack_type == "BRUTE":
+
+        brute_force(ip)
+
+    elif attack_type == "SQL":
+
+        sql_attack(ip)
+
+    elif attack_type == "RATE":
+
+        rate_attack(ip)
+
+    else:
+
+        # Random attacker behaviour
+        attack = random.choice([
+            brute_force,
+            sql_attack,
+            rate_attack
+        ])
+
+        attack(ip)
+
+    time.sleep(
+        random.uniform(0.8, 1.5)
+    )
+
+    # --------------------------------------------------------
+    # PHASE 3 — SYSTEM EXPLORATION
+    # --------------------------------------------------------
+
+    explore_system(ip)
+
+    time.sleep(
+        random.uniform(0.8, 1.5)
+    )
+
+    # --------------------------------------------------------
+    # PHASE 4 — DATA COLLECTION
+    # --------------------------------------------------------
+
+    collect_files(ip, files)
+
+    time.sleep(
+        random.uniform(0.8, 1.5)
+    )
+
+    # --------------------------------------------------------
+    # PHASE 5 — OPTIONAL CLEANUP
+    # --------------------------------------------------------
+
+    cleanup(ip)
+
+    log(
+        f"🏁 Campaign from {ip} completed"
+    )
+
+
+# ============================================================
+# MAIN SIMULATION
+# ============================================================
+
+def simulate():
+
+    print()
+    print("=" * 65)
+    print("        HONEYPOT ATTACK SIMULATOR")
+    print("=" * 65)
+    print()
+
+    # Guarantee three different attack behaviours
+    campaigns = [
+        ("BRUTE", IPS[0]),
+        ("SQL", IPS[1]),
+        ("RATE", IPS[2])
+    ]
+
+    # Additional realistic campaigns
+    remaining_ips = IPS[3:]
+
+    for ip in remaining_ips:
+
+        campaigns.append(
+            (
+                random.choice([
+                    "BRUTE",
+                    "SQL",
+                    "RATE"
+                ]),
+                ip
+            )
+        )
+
+    # Randomize campaign order
+    random.shuffle(campaigns)
+
+    for index, (attack_type, ip) in enumerate(campaigns):
+
+        print()
+
+        log(
+            f"Campaign {index + 1}/{len(campaigns)}"
+        )
+
+        attacker_campaign(
+            ip,
+            attack_type
+        )
+
+        # Pause between attackers
+        time.sleep(
+            random.uniform(2.0, 4.0)
+        )
+
+    print()
+    print("=" * 65)
+    print("        SIMULATION COMPLETE")
+    print("=" * 65)
+
+
+# ============================================================
+# ENTRY POINT
+# ============================================================
+
+if __name__ == "__main__":
+
+    simulate()
