@@ -73,3 +73,12 @@ The detection engine classifies incoming requests into categories including:
 | `Normal` | No suspicious behavior detected |
 
 ---
+## 🧠 DSA Used
+
+- **HashMap** – Stores IP addresses, attempts, user-password mappings, and attack patterns
+- **HashSet** – Tracks unique passwords for brute-force detection
+- **Queue** – Maintains request timestamps for rate limiting
+- **Graph** – Represents attacker request flow
+- **BFS** – Traverses the attack graph to analyze attack progression
+- **Sliding Window** – Detects excessive requests within a fixed time interval
+---
