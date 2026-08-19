@@ -5,110 +5,179 @@ import java.util.*;
 
 @Service
 public class DetectionEngine {
+
     private Map<String, Set<String>> userPasswords = new HashMap<>();
     private Map<String, Integer> attempts = new HashMap<>();
     private Map<String, Queue<Long>> requestTimes = new HashMap<>();
-    private Trie trie = new Trie();
+
+    // =========================================================
+    // HASHMAP FOR ATTACK PATTERNS
+    // =========================================================
+
+    private Map<String, String> attackPatterns = new HashMap<>();
 
     public DetectionEngine() {
-        trie.insert(" OR ");
-        trie.insert("' OR ");
-        trie.insert("--");
-        trie.insert("1=1");
-        trie.insert("<SCRIPT>");
+
+        attackPatterns.put(" OR ", "SQL Injection");
+        attackPatterns.put("' OR ", "SQL Injection");
+        attackPatterns.put("--", "SQL Injection");
+        attackPatterns.put("1=1", "SQL Injection");
+        attackPatterns.put("<SCRIPT>", "XSS");
     }
 
-    public boolean isSuspicious(String ip, String username, String password, String userAgent) {
-    attempts.put(ip, attempts.getOrDefault(ip, 0) + 1);
-    if (isRateLimited(ip)) return true;
 
-    String key = ip + ":" + username;
+    // =========================================================
+    // EXISTING METHOD - KEPT
+    // =========================================================
 
-    // initialize set
-    userPasswords.putIfAbsent(key, new HashSet<>());
+    public boolean isSuspicious(
+            String ip,
+            String username,
+            String password,
+            String userAgent) {
 
-    // add PASSWORD 
-    userPasswords.get(key).add(password);
-
-    // brute force detection
-    if (userPasswords.get(key).size() >= 4) {
-        return true;
+        return !getDetectionType(
+                ip,
+                username,
+                password,
+                userAgent
+        ).equals("Normal");
     }
 
-    if (isPatternSuspicious(username)) return true;
 
-    if (userAgent != null &&
-            (userAgent.contains("curl") || userAgent.contains("python"))) {
-        return true;
+    // =========================================================
+    // DETECTION TYPE
+    // =========================================================
+
+    public String getDetectionType(
+            String ip,
+            String username,
+            String password,
+            String userAgent) {
+
+        attempts.put(
+                ip,
+                attempts.getOrDefault(ip, 0) + 1
+        );
+
+
+        // =====================================================
+        // 1. RATE LIMITING
+        // =====================================================
+
+        if (isRateLimited(ip)) {
+            return "Rate Limiting";
+        }
+
+
+        // =====================================================
+        // 2. BRUTE FORCE
+        // =====================================================
+
+        String key = ip + ":" + username;
+
+        userPasswords.putIfAbsent(
+                key,
+                new HashSet<>()
+        );
+
+        userPasswords
+                .get(key)
+                .add(password);
+
+        if (userPasswords.get(key).size() >= 4) {
+            return "Brute Force";
+        }
+
+
+        // =====================================================
+        // 3. SQL INJECTION / XSS
+        // =====================================================
+
+        if (isPatternSuspicious(username)) {
+
+            String input = username.toUpperCase();
+
+            if (input.contains("<SCRIPT>")) {
+                return "XSS";
+            }
+
+            return "SQL Injection";
+        }
+
+
+        // =====================================================
+        // 4. BOT / AUTOMATED REQUEST
+        // =====================================================
+
+        if (userAgent != null) {
+
+            String agent = userAgent.toLowerCase();
+
+            if (agent.contains("curl")
+                    || agent.contains("python")) {
+
+                return "Bot Activity";
+            }
+        }
+
+
+        // =====================================================
+        // 5. NORMAL
+        // =====================================================
+
+        return "Normal";
     }
 
-    return false;
-}
+
+    // =========================================================
+    // RATE LIMITING
+    // =========================================================
 
     private boolean isRateLimited(String ip) {
 
         long now = System.currentTimeMillis();
 
-        requestTimes.putIfAbsent(ip, new LinkedList<>());
-        Queue<Long> q = requestTimes.get(ip);
+        requestTimes.putIfAbsent(
+                ip,
+                new LinkedList<>()
+        );
+
+        Queue<Long> q =
+                requestTimes.get(ip);
 
         q.add(now);
 
-        while (!q.isEmpty() && now - q.peek() > 10000) {
+        while (!q.isEmpty()
+                && now - q.peek() > 10000) {
+
             q.poll();
         }
 
         return q.size() > 5;
     }
 
-    private boolean isPatternSuspicious(String input) {
-        return trie.containsPattern(input);
-    }
 
-    // ===== TRIE =====
-    private static class Trie {
+    // =========================================================
+    // HASHMAP PATTERN CHECK
+    // =========================================================
 
-        static class Node {
-            Map<Character, Node> children = new HashMap<>();
-            boolean isEnd;
-        }
+    private boolean isPatternSuspicious(
+            String input) {
 
-        private final Node root = new Node();
-
-        public void insert(String word) {
-            Node cur = root;
-
-            for (char c : word.toUpperCase().toCharArray()) {
-                cur.children.putIfAbsent(c, new Node());
-                cur = cur.children.get(c);
-            }
-
-            cur.isEnd = true;
-        }
-
-        public boolean containsPattern(String text) {
-
-            if (text == null) return false;
-
-            text = text.toUpperCase();
-
-            for (int i = 0; i < text.length(); i++) {
-
-                Node cur = root;
-
-                for (int j = i; j < text.length(); j++) {
-
-                    char c = text.charAt(j);
-
-                    if (!cur.children.containsKey(c)) break;
-
-                    cur = cur.children.get(c);
-
-                    if (cur.isEnd) return true;
-                }
-            }
-
+        if (input == null) {
             return false;
         }
+
+        String text = input.toUpperCase();
+
+        for (String pattern : attackPatterns.keySet()) {
+
+            if (text.contains(pattern.toUpperCase())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
