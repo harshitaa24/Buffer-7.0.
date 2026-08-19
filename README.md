@@ -1,81 +1,75 @@
-# 🔐 Intelligent Honeypot-Based Security System with Attack Detection
+# 🔐 Intelligent Honeypot-Based Security System
 
----
+A Spring Boot-based honeypot security system designed to detect, classify, and monitor suspicious login activity. The system simulates a vulnerable login environment, identifies common attack patterns, tracks attacker behavior, and provides an admin dashboard for monitoring security events.
+
 ## 🚀 Demo
 
-🔗 [Click here to view project demo](https://drive.google.com/file/d/1-rUZf4Q0koSLeQvX30dlFgNAe-bTTULS/view?usp=sharing)
-
-## What is a Honeypot?
-
-A **honeypot** is a cybersecurity mechanism designed to attract attackers by simulating vulnerable systems. Instead of directly protecting real systems, it acts as a decoy environment where malicious activities can be safely observed and analyzed.
-
-### 💡 Concept Of This Project
-
-In this project:
-- Fake endpoints (like login pages) are exposed  
-- Suspicious users are redirected to a honeypot  
-- Their actions are recorded & analysed for pattern detection
-- A graph-based system tracks how attacks evolve  
-
-The system focuses on monitoring attacker behavior rather than immediately blocking it.
+🔗 [View Project Demo](https://drive.google.com/file/d/1-rUZf4Q0koSLeQvX30dlFgNAe-bTTULS/view?usp=sharing)
 
 ---
 
-## 🚀 Features
+## 📖 Overview
 
-- Honeypot Simulation  
-  Fake login system to trap attackers and capture credentials safely  
+A **honeypot** is a security mechanism that intentionally exposes a simulated vulnerable environment to attract and observe malicious activity.
 
-- Login Tries Tracking  
-  Tracks number of login attempts per IP/user and detects brute-force attacks  
+This project implements a fake login system that acts as a controlled honeypot. Incoming login requests are analyzed based on:
 
-- Attack Detection  
-  Identifies suspicious patterns such as SQL injections, Random tries & Rate Limiting  
+- Login attempt frequency
+- Repeated password usage
+- Suspicious input patterns
+- Automated request indicators
+- Request timing
+- User/IP behavior
 
-- Attack Graph Tracking  
-  Stores request flow using a graph and analyzes it using BFS  
-
-- Logging System  
-  Records IP, endpoint, username, password, tries count, timestamp, and tag  
+Detected activity is classified and recorded in the security logs, allowing administrators to analyze attack patterns through a web-based dashboard.
 
 ---
 
-## 📌Tech Stack
+## 🎯 Objectives
 
-### 1] Data Structures Used
+The main objectives of the project are:
 
-- Graph – Attack flow tracking  
-- Trie – Pattern detection  
-- Queue – BFS traversal  
-- HashMap & HashSet – Store IPs, Username, passwords and number of attempts  
-- Sliding Window – Timestamp-based activity tracking  
-
-### Backend
-
-- Java, Spring Boot (REST APIs)  
-- Spring MVC (Controllers & routing)  
-- Service Layer (Attack detection, Honeypot logic, BFS-based attack graph, Fake DB)  
-- Data Storage: HashMap, List + file logging  
-- Logging: IP, endpoint, credentials, tries, timestamp, tag, status  
-
-### Frontend
-- HTML  
-- CSS  
-- JavaScript (Admin Dashboard UI)  
-
----
-## ⚙️ Working
-
-The system begins by capturing each incoming request, such as a login attempt, along with essential details including IP address, username, user agent and timestamp. It maintains a count of login attempts using HashMap-based storage to identify repeated access patterns while a sliding window mechanism analyzes request frequency over time to detect abnormal or rapid activity. For efficient pattern recognition a Trie data structure is utilized to identify repeated or suspicious input sequences. 
-All requests are simultaneously recorded in a graph structure that models the flow of actions performed by a user. This graph is analyzed using Breadth-First Search (BFS) to understand the sequence and progression of potential attack paths. If the system detects suspicious behavior such as excessive login tries, unusual request patterns or anomalies in access behavior then the user is redirected to a honeypot environment designed to safely capture and study malicious activity. Every interaction is logged with detailed metadata and classified as normal or suspicious, and the admin dashboard provides a centralized interface for monitoring, analysis, and decision-making.
+- Detect suspicious login behavior
+- Identify common attack patterns such as SQL Injection and XSS
+- Detect brute-force and rate-limiting attacks
+- Identify automated requests and bot activity
+- Track attacker request flows using a graph
+- Maintain detailed security logs
+- Provide an admin dashboard for real-time monitoring
+- Demonstrate the use of data structures in a practical cybersecurity application
 
 ---
 
-## 💼 Applications
+## ✨ Features
 
-- **Cybersecurity Systems** – Detection and analysis of intrusion attempts  
-- **Banking & Financial Platforms** – Prevention of brute-force and unauthorized login attacks  
-- **Web Applications** – Monitoring bots, credential stuffing, and abnormal traffic  
-- **Enterprise Security** – Tracking internal threats and suspicious user behavior  
-- **Research & Education** – Studying real-world attack patterns in a controlled environment  
+### 🔐 Honeypot Login System
+
+A simulated login endpoint is used as a decoy environment for capturing suspicious requests.
+
+The system records information such as:
+
+- IP address
+- Username
+- Password
+- User-Agent
+- Endpoint
+- Timestamp
+- Detection type
+- Request status
+
+---
+
+### 🛡️ Attack Detection
+
+The detection engine classifies incoming requests into categories including:
+
+| Detection Type | Description |
+|---|---|
+| `SQL Injection` | Detects known SQL injection patterns |
+| `XSS` | Detects script-based payloads |
+| `Brute Force` | Detects repeated login attempts with different passwords |
+| `Rate Limiting` | Detects excessive requests within a short time window |
+| `Bot Activity` | Detects automated clients such as curl or Python scripts |
+| `Normal` | No suspicious behavior detected |
+
 ---
